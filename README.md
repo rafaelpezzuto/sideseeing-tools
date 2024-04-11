@@ -15,7 +15,7 @@ __Creating a dataset__
 from sideseeing_tools import sideseeing as side
 
 # If your content directories are in /home/user/my-project/data, use this
-ds = side.SideSeeingDS(root_dir='/*home/user/my-project', subdir_data='data')
+ds = side.SideSeeingDS(root_dir='/home/user/my-project', subdir_data='data')
 
 # Otherwise, if your content directories are in /home/user/my-project, use this
 ds = side.SideSeeingDS(root_dir='/home/user/my-project')
