@@ -24,7 +24,7 @@ class SideSeeingDS:
             subdir_data='.',
             name='MyDataset', 
             generate_metadata=True,
-            extract_media=False,
+            extract_media=True,
         ):
         self.name = name
         
@@ -254,7 +254,7 @@ class SideSeeingInstance:
 
 
 class SideSeeingPlotter:
-    def __init__(self, dataset: SideSeeingDS, path_taxonomy: str=None, google_api_key=constants.GOOGLE_GEOCODING_API_PUBLIC_KEY):
+    def __init__(self, dataset: SideSeeingDS, path_taxonomy: str=None, google_api_key: str=None):
         self.dataset = dataset
         if path_taxonomy:
             self.categories_and_tags = utils.load_csv_data(path_taxonomy, fieldnames=constants.LABELS_FILE_FIELDNAMES)
