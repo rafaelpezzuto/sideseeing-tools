@@ -62,5 +62,3 @@ SUPPORTED_FILES = [
   'sensors.three.uncalibrated.csv',
   'video.mp4',
 ]
-
-GOOGLE_GEOCODING_API_PUBLIC_KEY = 'AIzaSyBUU18LiqaPpa83z7GrtdyWunkgn7sUpek'
