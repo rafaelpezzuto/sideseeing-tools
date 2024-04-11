@@ -24,8 +24,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rafael.pezzuto/sideseeing-tools"
-Issues = "https://github.com/rafael.pezzuto/sideseeing-tools/issues"
+Homepage = "https://github.com/rafaelpezzuto/sideseeing-tools"
+Issues = "https://github.com/rafaelpezzuto/sideseeing-tools/issues"
 
 [build-system]
 requires = ["setuptools>=61.0"]
