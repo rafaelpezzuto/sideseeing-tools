@@ -1,18 +1,12 @@
-import base64
 import os
-import subprocess
 
-import cv2
 import imageio
+import cv2
 
-from IPython.display import (
-    Audio, 
-    HTML, 
-    Image,
-)
+from moviepy.editor import VideoFileClip
 
 
-def extract_audio(source_path: str, target_path: str, sample_rate=44100, channels=2, codec='pcm_s16le'):
+def extract_audio(source_path: str, target_path: str, sample_rate=44100, channels=2, codec='pcm_s16le', overwrite=False):
     '''
     Extracts audio in WAV format from a video file.
     '''
@@ -24,9 +18,11 @@ def extract_audio(source_path: str, target_path: str, sample_rate=44100, channel
     mp4_name = os.path.basename(source_path)
     wav_path = os.path.join(target_dir, mp4_name.replace('.mp4', '.wav'))
 
-    if not os.path.exists(wav_path):
+    if not os.path.exists(wav_path) or overwrite:
         print(f'INFO. Extracting WAV from {source_path} to {wav_path}.')
-        subprocess.call(['ffmpeg', '-i', source_path, '-vn', '-acodec', codec, '-ar', f'{sample_rate}', '-ac', f'{channels}', wav_path])
+        clip = VideoFileClip(source_path)
+        clip.audio.write_audiofile(wav_path, fps=sample_rate, nbytes=2, codec=codec, ffmpeg_params=["-ac", str(channels)])
+        clip.close()
 
     return wav_path
 
@@ -74,27 +70,3 @@ def extract_gif(source_path: str, target_path: str, target_width=300, target_fps
         cap.release()
 
     return gif_path
-
-
-def play_video(path: str):
-    '''
-    Plays the video.
-    '''
-    mp4 = open(path,'rb').read()
-    data_url = "data:video/mp4;base64," + base64.b64encode(mp4).decode()
-    return HTML("""<video width=400 controls><source src="%s" type="video/mp4"></video>""" % data_url)
-
-
-def play_gif(path: str):
-    '''
-    Displays the GIF.
-    '''
-    with open(path, 'rb') as f:
-        display(Image(data=f.read(), format='png'))
-
-
-def play_audio(path: str):
-    '''
-    Plays the audio track.
-    '''
-    return display(Audio(path))

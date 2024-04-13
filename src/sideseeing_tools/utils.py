@@ -2,25 +2,63 @@ import csv
 import datetime
 import requests
 
+import cv2
 import numpy as np
 import pandas as pd
 import reverse_geocode
 
 
 def load_csv_data(path: str, fieldnames: list, delimiter=','):
-  '''
-  Reads a CSV file using csv.DictReader and a predefined list of fields.
-  '''
-  data = []
+    '''
+    Reads a CSV file using csv.DictReader and a predefined list of fields.
+    '''
+    data = []
 
-  with open(path) as fin:
-      for row in csv.DictReader(fin, fieldnames=fieldnames, delimiter=delimiter):
-        new_row = {}
-        for k, v in row.items():
-          new_row[k.strip().lower()] = v.strip().lower()
-        data.append(new_row)
+    with open(path) as fin:
+        for row in csv.DictReader(fin, fieldnames=fieldnames, delimiter=delimiter):
+          new_row = {}
+          for k, v in row.items():
+            new_row[k.strip().lower()] = v.strip().lower()
+          data.append(new_row)
 
-  return data
+    return data
+
+
+def load_csv_data_with_pandas(path: str):
+    return pd.read_csv(path)
+
+
+def save_csv_data_with_pandas(data: pd.DataFrame, path: str, index=False):
+    data.to_csv(path, index=index)
+
+
+def generate_metadata(iterator, datetime_format: str):
+    items = []
+
+    for i in iterator:
+        cap = cv2.VideoCapture(i.video)
+        v_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        v_fps = cap.get(cv2.CAP_PROP_FPS)
+        v_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        v_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+
+        item = {}
+
+        item['name'] = i.instance_name
+        item['video_start_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStartDateTime', ''), datetime_format)
+        item['video_end_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStopDateTime', ''), datetime_format)
+        item['video_duration'] = round(v_frames / v_fps, 2)
+        item['video_frames'] = v_frames
+        item['video_fps'] = v_fps
+        item['video_resolution'] = f'{v_width}x{v_height}'
+        item['manufacturer'] = i.metadata.get('device', {}).get('manufacturer', '')
+        item['model'] = i.metadata.get('device', {}).get('model', '')
+        item['so_version'] = i.metadata.get('device', {}).get('androidVersion', '')
+
+        items.append(item)
+
+    return pd.DataFrame.from_dict(items)
 
 
 def standardize_sensor_name(sensor_name: str):
@@ -29,19 +67,22 @@ def standardize_sensor_name(sensor_name: str):
   '''
   sensor_name_lowered = sensor_name.lower()
 
-  if 'accel' in sensor_name_lowered:
+  if 'accel' in sensor_name_lowered or 'acc' in sensor_name_lowered:
     if 'linear' in sensor_name_lowered:
       return 'Linear Accelerometer'
-    else:
-      return 'Accelerometer'
+    return 'Accelerometer'
 
   if 'grav' in sensor_name_lowered:
     return 'Gravity'
 
   if 'gyro' in sensor_name_lowered:
+    if 'uncali' in sensor_name_lowered:
+       return 'Gyroscope Uncalibrated'
     return 'Gyroscope'
 
-  if 'magn' in sensor_name_lowered:
+  if 'mag' in sensor_name_lowered:
+    if 'uncali' in sensor_name_lowered:
+       return 'Magnetometer Uncalibrated'
     return 'Magnetometer'
 
   if 'light' in sensor_name_lowered or 'lux' in sensor_name_lowered:
