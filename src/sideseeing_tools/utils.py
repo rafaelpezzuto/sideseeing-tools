@@ -46,6 +46,7 @@ def generate_metadata(iterator, datetime_format: str):
         item = {}
 
         item['name'] = i.instance_name
+        item['geolocation_center'] = f'{i.geolocation_center[0]}, {i.geolocation_center[1]}'
         item['video_start_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStartDateTime', ''), datetime_format)
         item['video_end_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStopDateTime', ''), datetime_format)
         item['video_duration'] = round(v_frames / v_fps, 2)
@@ -55,7 +56,7 @@ def generate_metadata(iterator, datetime_format: str):
         item['manufacturer'] = i.metadata.get('device', {}).get('manufacturer', '')
         item['model'] = i.metadata.get('device', {}).get('model', '')
         item['so_version'] = i.metadata.get('device', {}).get('androidVersion', '')
-
+        
         items.append(item)
 
     return pd.DataFrame.from_dict(items)
@@ -151,6 +152,10 @@ def preprocess_sensors(data: dict, num_axes: int, datetime_format: str, start_ti
     series[key] = to_dataframe(value, num_axes, datetime_format)
 
   return series
+
+
+def preprocess_gps(data: dict):
+   return np.array([[float(d['latitude']), float(d['longitude'])] for d in data])
 
 
 def to_dataframe(data: dict, num_axes: int, datetime_format: str, create_time_column=True):
