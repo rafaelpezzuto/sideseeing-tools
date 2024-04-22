@@ -67,6 +67,7 @@ plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.cs
 #   .plot_instance_sensors3_and_audio()
 #   .plot_instance_video_frames_at_times()
 #   .plot_instance_video_frames()
+#   .generate_video_sensor3()
 ```
 
 __Suggested dataset folder structure__

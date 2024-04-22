@@ -1,9 +1,12 @@
 import cv2
 import folium
 import librosa
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+from matplotlib import animation
 
 from sideseeing_tools import constants, utils
 from sideseeing_tools import sideseeing as sst
@@ -365,3 +368,62 @@ class SideSeeingPlotter:
         df = df.sort_values('Frequency', ascending=False)
 
         return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
+
+    def generate_video_sensor3(self, instance: sst.SideSeeingInstance, sensor_name: str, output_path: str, use_dynamic_xaxis=True, dpi=90, figsize = (25, 4), linewidth=5):
+        plt.ion()
+
+        mpl.rcParams['lines.linewidth'] = linewidth
+        mpl.rcParams['font.family'] = "monospace"
+
+        fig, ax = plt.subplots(1, 1, figsize = figsize)
+
+        try:
+            data = instance.sensors3[sensor_name]
+        except KeyError:
+            print(f'ERROR. {sensor_name}\'s data does not exist.')
+            return
+
+        time_min = np.min(data['Time (s)'])
+        time_max = np.max(data['Time (s)'])
+        axis_min = np.min(np.min(data[['x', 'y', 'z']]))
+        axis_max = np.max(np.max(data[['x', 'y', 'z']]))
+        axis_dt = int(abs((axis_max - axis_min)) * 0.1) or 1
+
+        fps = int(len(data['x'])/time_max)
+
+        def animate(i):
+            ax.cla()
+
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+            ax.set_facecolor((0, 0, 0, 1))
+            ax.set_frame_on(False)
+            fig.patch.set_alpha(1)
+
+            if use_dynamic_xaxis:
+                x_start = max(0, i - 100)
+                x_end = i
+                ax.set_xlim([data['Time (s)'][x_start], data['Time (s)'][x_end]])
+            else:
+                ax.set_xlim([time_min, time_max])
+
+            ax.set_xlim()
+            ax.set_ylim([axis_min - axis_dt, axis_max + axis_dt])
+
+            ax.plot(data['Time (s)'][:i], data['x'][:i])
+            ax.plot(data['Time (s)'][:i], data['y'][:i])
+            ax.plot(data['Time (s)'][:i], data['z'][:i])
+
+        anim = animation.FuncAnimation(fig, animate, frames=len(data['x']), interval=200, blit=False, repeat=False)
+        plt.subplots_adjust(left=0.01, right=1, top=1, bottom=0.01)
+        anim.save(
+            output_path,
+            codec='libx264rgb',
+            dpi=dpi,
+            fps=fps,
+            writer='ffmpeg',
+            savefig_kwargs={
+            "transparent": True,
+            "facecolor": "Black"
+            }
+        )
