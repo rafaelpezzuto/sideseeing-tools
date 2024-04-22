@@ -22,7 +22,8 @@ ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
 
 # Available attributes and methods
 #   .metadata() // Tip: generates and prints the dataset metadata
-#   .size       // Tip: number of instances  
+#   .size       // Tip: shows the number of instances  
+#   .sensors    // Tip: lists the names of the available sensors
 ```
 
 __Iterating over the samples__

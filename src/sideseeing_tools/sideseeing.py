@@ -34,6 +34,8 @@ class SideSeeingDS:
         if generate_metadata:
             self.metadata(generate_metadata)
 
+        self.sensors = self.discover_sensors()
+
     def setup(self, extract_media):
         self.instances = {}
         for root, _, files in os.walk(self.data_dir):
@@ -53,6 +55,21 @@ class SideSeeingDS:
 
         for key in self.instances.keys():
             self.instances[key].setup(extract_media)
+
+    def discover_sensors(self):
+        sns = set()
+
+        for i in self.iterator:
+            for name in i.sensors1.keys():
+                sns.add(name)
+
+            for name in i.sensors3.keys():
+                sns.add(name)
+
+            for name in i.sensors6.keys():
+                sns.add(name)
+        
+        return sns
 
     @property
     def size(self):
