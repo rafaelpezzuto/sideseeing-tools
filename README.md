@@ -225,41 +225,6 @@ The following data outlines the specifications of sensor content before SideSeei
 | 712657872615658   | 2024-03-21T19:38:05.116Z| Gyroscope sensor UnCalibrated   | 0.064751714  | -0.007330383  | 0.118507855  | -0.003009122   | -0.016193425  | -0.0026664268| 3        |
 
 
-## Sensor data specification after SideSeeing conversion
-
-The following data outlines the specifications of sensor content after SideSeeing conversion, i.e., when accessing them through the properties of SideSeeingInstance (`my_sample.sensors1`, `my_sample.sensors3`, and `my_sample.sensors6`).
-
-### 3-axis sensors (accelerometer, gyroscope, among others)
-
-These sensors are accessible through `my_sample.sensors3`.
-| N | Column          | Description      |
-|---|-----------------|------------------|
-| 1 | timestamp_nano  | Timestamp in nanoseconds |
-| 2 | datetime_utc    | Date/time in Coordinated Universal Time (UTC) |
-| 3 | name            | Sensor name |
-| 4 | axis_x          | Value of axis X |
-| 5 | axis_y          | Value of axis Y |
-| 6 | axis_z          | Value of axis Z |
-| 7 | accuracy        | Sensor accuracy |
-
-### 3-axis sensors uncalibrated (accelerometer, gyroscope, among others)
-
-These type os sensors are accessible through `my_sample.sensors6`.
-
-| N | Column          | Description      |
-|---|-----------------|------------------|
-| 1 | timestamp_nano  | Timestamp in nanoseconds |
-| 2 | datetime_utc    | Date/time in Coordinated Universal Time (UTC) |
-| 3 | name            | Sensor name |
-| 4 | axis_x          | Value of axis X |
-| 5 | axis_y          | Value of axis Y |
-| 6 | axis_z          | Value of axis Z |
-| 7 | delta_x         | Uncalibrated X-axis value |
-| 8 | delta_y         | Uncalibrated Y-axis value |
-| 9 | delta_z         | Uncalibrated Z-axis value |
-| 10| accuracy        | Sensor accuracy |
-
-
 ## List of `SideSeeingInstance` attributes/methods
 
 | Attribute or method | Description |
