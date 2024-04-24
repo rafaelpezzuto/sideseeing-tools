@@ -148,7 +148,7 @@ plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.cs
 
 ## Additional tips
 
-We suggest employing the following folder structure: create a directory named 'data' to house all recordings. By doing so, when instantiating the `SideSeeingDataset`, a `metadata.csv` file will be generated in the root directory. Here is the command to instantiate a dataset:
+We suggest implementing the following folder structure: create a directory named `data` to contain all recordings. By doing so, when instantiating the `SideSeeingDataset`, a `metadata.csv` file will be generated in the root directory. Here is the command to instantiate a dataset:
 
 ```python
 ds = sideseeing.SideSeeingDS('/home/user/my-project', subdir='data', name='MyDataset')
