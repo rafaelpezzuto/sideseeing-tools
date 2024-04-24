@@ -70,3 +70,38 @@ def extract_gif(source_path: str, target_path: str, target_width=300, target_fps
         cap.release()
 
     return gif_path
+
+
+def extract_video_snippet(source_path, start_second, end_second, output_path):
+    try:
+        vc_reader = cv2.VideoCapture(source_path)
+        if not vc_reader.isOpened():
+            print('ERROR. Could not open the video file {source_path}.')
+            return
+
+        fps = vc_reader.get(cv2.CAP_PROP_FPS)
+        total_frames = int(vc_reader.get(cv2.CAP_PROP_FRAME_COUNT))
+        height = int(vc_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        width = int(vc_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
+        
+        start_frame = int(fps * start_second)
+        end_frame = min(int(fps * end_second), total_frames)
+
+        if start_frame >= end_frame:
+            raise ValueError('ERROR. End time must be greater than start time.')
+        
+        print(f'INFO. Extracting snippet from second {start_second} to {end_second}.')    
+        vc_writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        
+        for fn in range(start_frame, end_frame):
+            vc_reader.set(cv2.CAP_PROP_POS_FRAMES, fn)
+            success, frame = vc_reader.read()
+            if success:
+                vc_writer.write(frame)
+    
+    except Exception as e:
+        print(f'Error occurred: {str(e)}')
+
+    finally:
+        vc_writer.release()
+        vc_reader.release()
