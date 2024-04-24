@@ -238,3 +238,25 @@ class SideSeeingInstance:
                 if extract_media:
                     self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
                     self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
+
+    def extract_snippet(self, start_time, end_time, output_dir):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        sensor_dicts = [self.sensors1, self.sensors3, self.sensors6]
+
+        for sensor_dict in sensor_dicts:
+            for s, sensor in sensor_dict.items():
+                utils.extract_sensor_snippet(
+                    sensor,
+                    start_time,
+                    end_time,
+                    output_path=os.path.join(output_dir, f'{s.lower()}_{start_time}_{end_time}.csv')
+                )
+
+        media.extract_video_snippet(
+            self.video, 
+            start_time, 
+            end_time, 
+            os.path.join(output_dir, f'video_{start_time}_{end_time}.mp4'),
+        )
