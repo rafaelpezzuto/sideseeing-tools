@@ -26,6 +26,21 @@ ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
 #   .sensors    // Tip: lists the names of the available sensors
 ```
 
+__Get a random sample from the dataset__
+```python
+my_sample = ds.instance
+```
+
+__Extract accelerometer data from the sample__
+```python
+my_accel_data = ds.instance['sensors3']['Accelerometer']
+```
+
+__Show available sensors in the dataset__
+```python
+ds.sensors
+```
+
 __Iterating over the samples__
 
 ```python
@@ -70,6 +85,19 @@ plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.cs
 #   .generate_video_sensor3()
 ```
 
+__Media tools__
+```python
+from sideseeing_tools import media
+
+# Extract a 15-second snippet from the video, beginning at the 3-second mark and ending at the 18-second mark
+media.extract_video_snippet(
+    source_path=my_sample.video # Tip: path to a mp4 file
+    start_second=3,
+    end_second=18,
+    output_path='my_snippet.mp4'
+)
+```
+
 __Suggested dataset folder structure__
 
 `ds = sideseeing.SideSeeingDS('/home/user/my-project', subdir='data', name='MyDataset')`
@@ -96,8 +124,19 @@ my-project/
 ```
 
 
-## Documentation
-Under construction.
+## Sensors variables
+
+### 3-axis sensors (accelerometer, gyroscope, among others)
+| N | Column          | Description      |
+|---|-----------------|----------------|
+| 1 | timestamp_nano  | Timestamp in nanoseconds |
+| 2 | datetime_utc    | Date/time in Coordinated Universal Time (UTC) |
+| 3 | name            | Sensor name |
+| 4 | axis_x          | Value of axis X |
+| 5 | axis_y          | Value of axis Y |
+| 6 | axis_z          | Value of axis Z |
+| 7 | accuracy        | Sensor accuracy |
+
 
 ## Author
 
