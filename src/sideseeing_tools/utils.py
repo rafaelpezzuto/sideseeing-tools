@@ -239,3 +239,25 @@ def inverse_geocode_from_google(latitude: float, longitude: float, key: str):
                 data['city'] = i.get('long_name')
 
     return data
+
+
+def extract_sensor_snippet(data: pd.DataFrame, start_time, end_time, output_path):
+    if data.empty:
+        print('ERROR. The input DataFrame is empty.')
+        return None
+    
+    required_columns = ['Time (s)',]
+    for col in required_columns:
+        if col not in data.columns:
+            print(f"ERROR. Column '{col}' is not present in the DataFrame.")
+            return None
+    
+    if not ((start_time >= data['Time (s)'].min()) and (end_time <= data['Time (s)'].max())):
+        print('ERROR. The specified time range is outside the data range.')
+        return None
+    
+    snippet = data[(data['Time (s)'] >= start_time) & (data['Time (s)'] <= end_time)]
+    
+    snippet.to_csv(output_path, sep=',', columns=data.columns, index=False)
+    
+    return snippet
