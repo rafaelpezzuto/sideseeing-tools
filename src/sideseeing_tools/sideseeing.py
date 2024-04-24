@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import random
 
 from sideseeing_tools import (
     constants, 
@@ -19,6 +20,7 @@ class SideSeeingDS:
             generate_metadata=True,
             extract_media=True,
         ):
+        print('INFO. Loading data.')
         self.name = name
         
         if not os.path.isdir(root_dir):
@@ -33,8 +35,7 @@ class SideSeeingDS:
 
         if generate_metadata:
             self.metadata(generate_metadata)
-
-        self.sensors = self.discover_sensors()
+        print('INFO. Done.')
 
     def setup(self, extract_media):
         self.instances = {}
@@ -56,20 +57,20 @@ class SideSeeingDS:
         for key in self.instances.keys():
             self.instances[key].setup(extract_media)
 
-    def discover_sensors(self):
-        sns = set()
-
+        self.sensors = set()
         for i in self.iterator:
             for name in i.sensors1.keys():
-                sns.add(name)
+                self.sensors.add(name)
 
             for name in i.sensors3.keys():
-                sns.add(name)
+                self.sensors.add(name)
 
             for name in i.sensors6.keys():
-                sns.add(name)
-        
-        return sns
+                self.sensors.add(name)
+
+    @property
+    def instance(self):
+        return self.instances[random.choice(list(self.instances.keys()))]
 
     @property
     def size(self):
