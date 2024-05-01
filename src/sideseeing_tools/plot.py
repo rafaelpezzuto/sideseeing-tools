@@ -30,7 +30,7 @@ class SideSeeingPlotter:
         M_db = librosa.power_to_db(M, ref=np.max)
 
         fig, ax = plt.subplots(nrows=2, sharex=True)
-        librosa.display.waveshow(y, sr=sr, ax=ax[0])
+        librosa.display.waveshow(y, sr=sr, ax=ax[0], color="blue")
         ax[0].set(title='Waveform')
         ax[0].label_outer()
 
@@ -193,7 +193,7 @@ class SideSeeingPlotter:
                 M = librosa.feature.melspectrogram(y=y, sr=sr)
                 M_db = librosa.power_to_db(M, ref=np.max)
 
-                librosa.display.waveshow(y, sr=sr, ax=axis[ind + 1, 0])
+                librosa.display.waveshow(y, sr=sr, ax=axis[ind + 1, 0], color="blue")
                 axis[ind + 1, 0].set_xlim((x_ti, x_tf))
                 axis[ind + 1, 0].set_ylabel('Waveform')
                 axis[ind + 1, 0].set_xlabel('Time (s)')
