@@ -1,6 +1,6 @@
 [project]
 name = "sideseeing-tools"
-version = "0.2.1"
+version = "0.2.2"
 authors = [
   {name="Rafael J. P. Damaceno", email="rafael.damaceno@ime.usp.br"},
 ]
@@ -8,15 +8,15 @@ description = "A set of tools to load, preprocess and analyze data collected thr
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-  "folium~=0.13.0",
-  "imageio~=2.5.0",
-  "librosa~=0.10.0",
+  "folium",
+  "imageio",
+  "librosa",
   "matplotlib",
-  "moviepy~=1.0.3",
-  "numpy~=1.25.0",
-  "opencv-python~=4.7.0.68",
-  "pandas~=2.0.3",
-  "reverse-geocode==1.6",
+  "moviepy",
+  "numpy",
+  "opencv-python",
+  "pandas",
+  "reverse-geocode",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
