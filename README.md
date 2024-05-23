@@ -34,7 +34,7 @@ my_sample = ds.instance
 
 __Get accelerometer data from the sample__
 ```python
-my_accel_data = ds.instance['sensors3']['Accelerometer']
+my_accel_data = ds.instance.sensors3['Accelerometer']
 my_accel_data
 ```
 
