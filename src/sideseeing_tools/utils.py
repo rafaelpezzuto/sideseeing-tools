@@ -178,6 +178,7 @@ def to_dataframe(data: dict, num_axes: int, datetime_format: str, create_time_co
   if create_time_column:
       df['Datetime UTC'] = pd.to_datetime(df['Datetime UTC'], format=datetime_format)
       df['Time (s)'] = (df['Datetime UTC'] - df['Datetime UTC'].iloc[0]).dt.total_seconds()
+      df.sort_values('Time (s)', inplace=True)
 
   return df
 
