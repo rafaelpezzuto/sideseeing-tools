@@ -38,7 +38,7 @@ def generate_metadata(iterator, datetime_format: str):
     for i in iterator:
         cap = cv2.VideoCapture(i.video)
         v_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        v_fps = cap.get(cv2.CAP_PROP_FPS)
+        v_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         v_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         v_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         cap.release()
@@ -98,6 +98,11 @@ def standardize_sensor_name(sensor_name: str):
     if 'non' in sensor_name_lowered:
       return 'Proximity Non-Wakeup'
     return 'Proximity'
+  
+  if 'pressure' in sensor_name_lowered:
+    if 'non' in sensor_name_lowered:
+      return 'Pressure Non-Wakeup'
+    return 'Pressure'
 
   print(f'Unknown sensor {sensor_name} has been detected.')
   return sensor_name
