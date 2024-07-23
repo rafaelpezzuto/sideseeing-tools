@@ -100,7 +100,7 @@ class SideSeeingPlotter:
         plt.show()
         cap.release()
 
-    def plot_instance_video_frames_at_times(self, instance: sst.SideSeeingInstance, times: list):
+    def plot_instance_video_frames_at_times(self, instance: sst.SideSeeingInstance, times: list, show_frame_number=True):
         '''
         Plots frames for the specified video at the given time points.
         '''
@@ -138,7 +138,8 @@ class SideSeeingPlotter:
                 ax = axes[cc]
 
             ax.imshow(frame_rgb)
-            ax.set_title(f'{time_in_seconds:.1f} s' )
+            if show_frame_number:
+                ax.set_title(f'{time_in_seconds:.1f} s' )
 
             ax.set_xticks([])
             ax.set_yticks([])
