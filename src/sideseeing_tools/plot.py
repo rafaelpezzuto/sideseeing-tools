@@ -8,7 +8,7 @@ import pandas as pd
 
 from matplotlib import animation
 
-from sideseeing_tools import constants, utils
+from sideseeing_tools import constants, media, utils
 from sideseeing_tools import sideseeing as sst
 
 
@@ -25,6 +25,10 @@ class SideSeeingPlotter:
         '''
         Plots the waveform and the Mel spectrogram for the specified audio file.
         '''
+        if not hasattr(instance, 'audio'):
+            print(f'Extracting audio data')
+            instance.audio = media.extract_audio(instance.file_path, instance.file_path.replace('.mp4', '.wav'))
+
         y, sr = librosa.load(instance.audio)
         M = librosa.feature.melspectrogram(y=y, sr=sr)
         M_db = librosa.power_to_db(M, ref=np.max)
@@ -190,6 +194,10 @@ class SideSeeingPlotter:
             axis[ind, 1].legend()
 
             if ind == num_sensor_subplots - 1:
+                if not hasattr(instance, 'audio'):
+                    print(f'Extracting audio data')
+                    instance.audio = media.extract_audio(instance.file_path, instance.file_path.replace('.mp4', '.wav'))
+
                 y, sr = librosa.load(instance.audio)
                 M = librosa.feature.melspectrogram(y=y, sr=sr)
                 M_db = librosa.power_to_db(M, ref=np.max)
