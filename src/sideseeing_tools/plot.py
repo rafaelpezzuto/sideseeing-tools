@@ -428,3 +428,10 @@ class SideSeeingPlotter:
             "facecolor": "Black"
             }
         )
+
+    def plot_dataset_frames_at_times(self, times, show_instance_name=True, show_frame_number=True):
+        for instance in self.dataset.iterator:
+            if show_instance_name:
+                print(instance.instance_name)
+            self.plot_instance_video_frames_at_times(instance, times=times, show_frame_number=show_frame_number)
+
