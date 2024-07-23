@@ -435,3 +435,14 @@ class SideSeeingPlotter:
                 print(instance.instance_name)
             self.plot_instance_video_frames_at_times(instance, times=times, show_frame_number=show_frame_number)
 
+    def plot_sensor(self, data, title, time_column, axis_columns, axis_labels, xlim=(0,15), linewidth=0.75, figsize=(20, 4)):
+        fig, ax = plt.subplots(nrows=1, figsize=figsize)
+
+        for ind, a in enumerate(axis_columns):
+            ax.plot(data[time_column], data[a], label=axis_labels[ind], linewidth=linewidth)
+
+        ax.set_title(title)
+        ax.set_xlim(xlim)
+        ax.legend()
+
+        fig.show()
