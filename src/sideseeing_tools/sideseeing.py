@@ -17,8 +17,8 @@ class SideSeeingDS:
             root_dir,
             subdir_data='.',
             name='MyDataset', 
-            generate_metadata=True,
-            extract_media=True,
+            generate_metadata=False,
+            extract_media=False,
         ):
         print('INFO. Loading data.')
         self.name = name
@@ -47,12 +47,12 @@ class SideSeeingDS:
 
                 ssf = SideSeeingFile(self.data_dir, os.path.join(root, f))
                 if ssf.is_valid:
-                    if ssf.instance_name not in self.instances:
-                        self.instances[ssf.instance_name] = SideSeeingInstance(
-                                ssf.instance_name,
-                                ssf.instance_path,
+                    if ssf.name not in self.instances:
+                        self.instances[ssf.name] = SideSeeingInstance(
+                                ssf.name,
+                                ssf.path,
                             )
-                    self.instances[ssf.instance_name].add_file(ssf)
+                    self.instances[ssf.name].add_file(ssf)
 
         for key in self.instances.keys():
             self.instances[key].setup(extract_media)
@@ -113,8 +113,8 @@ class SideSeeingFile:
     def setup(self):
         self.file_name = os.path.basename(self.file_path)
         self.file_type = self.discover_file_type()
-        self.instance_path = os.path.dirname(self.file_path)
-        self.instance_name = self.gen_instance_name(self.file_path, self.data_dir)
+        self.path = os.path.dirname(self.file_path)
+        self.name = self.gen_instance_name(self.file_path, self.data_dir)
         self.is_valid = False if self.file_type == 'unknown' else True
 
     def gen_instance_name(self, file_path, data_dir):
@@ -154,24 +154,24 @@ class SideSeeingFile:
 
 
 class SideSeeingInstance:
-    def __init__(self, instance_name, instance_path):
-        self.instance_name = instance_name
-        self.instance_path = instance_path
+    def __init__(self, name, path):
+        self.name = name
+        self.path = path
         self.files = {}
 
     def add_file(self, ssf: SideSeeingFile):
         self.files[ssf.file_type] = ssf
 
     def __str__(self):
-        return f'SSInstance[instance_name: {self.instance_name}]'
+        return f'SSInstance[name: {self.name}]'
 
     def __repr__(self):
         return self.__str__()
 
     def print_metadata(self):
-        print(f"----\nName: {self.instance_name}")
+        print(f"----\nName: {self.name}")
         print(
-            f"Path: {self.instance_path}",
+            f"Path: {self.path}",
             f"Manufacturer: {self.metadata.get('device', {}).get('manufacturer', '').title()}",
             f"Model: {self.metadata.get('device', {}).get('model', '')}",
             f"Android version: {self.metadata.get('device', {}).get('androidVersion', '')}",
@@ -185,13 +185,14 @@ class SideSeeingInstance:
             with open(self.files['metadata'].file_path) as json_file:
                 self.metadata = json.load(json_file)
         except KeyError:
-            raise exceptions.MetadataFileDoesNotExistError(f'ERROR. Metadata file is missing for {self.instance_name}')
+            raise exceptions.MetadataFileDoesNotExistError(f'ERROR. Metadata file is missing for {self.name}')
 
         if self.metadata is None:
-            raise exceptions.InvalidMetadataFileError(f'ERROR. Metadata file is is invalid for {self.instance_name}')
+            raise exceptions.InvalidMetadataFileError(f'ERROR. Metadata file is is invalid for {self.name}')
 
         self.video_start_time = datetime.datetime.strptime(self.metadata['time']['videoStartDateTime'], constants.DATETIME_UTC_FORMAT)
         self.video_stop_time = datetime.datetime.strptime(self.metadata['time']['videoStopDateTime'], constants.DATETIME_UTC_FORMAT)
+        self.video_total_time = (self.video_stop_time - self.video_stop_time).total_seconds()
 
         for k, v in self.files.items():
             if k == 'consumption':
