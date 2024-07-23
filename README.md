@@ -18,8 +18,8 @@ from sideseeing_tools import sideseeing
 ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
 
 # Available iterators
-#   .instances  // Tip: dictionary of instances (key=instance_name, value=SideSeeingInstance)
-#   .iterator   // Tip: for i in ds.iterator: i.instance_name
+#   .instances  // Tip: dictionary of instances (key=name, value=SideSeeingInstance)
+#   .iterator   // Tip: for i in ds.iterator: i.name
 
 # Available attributes and methods
 #   .metadata() // Tip: generates and prints the dataset metadata
@@ -122,7 +122,7 @@ __Iterate over the samples__
 
 ```python
 for i in ds.iterator:
-    print(i.instance_name, i.video)
+    print(i.name, i.video)
 ```
 
 __Create a plotter__
