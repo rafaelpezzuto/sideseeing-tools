@@ -243,7 +243,7 @@ class SideSeeingPlotter:
 
         for instance in self.dataset.iterator:
             if not hasattr(instance, 'label'):
-                print(f"WARNING. {instance.instance_name} isn't labeled.")
+                print(f"WARNING. {instance.name} isn't labeled.")
             else:
                 for l in instance.label:
                     cat, tag = l['category'], l['tag']
@@ -288,7 +288,7 @@ class SideSeeingPlotter:
 
         for instance in self.dataset.iterator:
             if not hasattr(instance, 'label'):
-                print(f"WARNING. {instance.instance_name} isn't labeled.")
+                print(f"WARNING. {instance.name} isn't labeled.")
             else:
                 instance_st = set()
                 for l in instance.label:
@@ -317,7 +317,7 @@ class SideSeeingPlotter:
         if len(identifiers) == 0:
             for i in self.dataset.iterator:
                 _content.append([
-                        i.instance_name,
+                        i.name,
                         i.sensors3.get(sensor_name, [])
                 ])
         else:
@@ -328,7 +328,7 @@ class SideSeeingPlotter:
                     continue
 
                 _content.append([
-                        _instance.instance_name,
+                        _instance.name,
                         _instance.sensors3.get(sensor_name, [])
                 ])
 
@@ -440,7 +440,7 @@ class SideSeeingPlotter:
     def plot_dataset_frames_at_times(self, times, show_instance_name=True, show_frame_number=True):
         for instance in self.dataset.iterator:
             if show_instance_name:
-                print(instance.instance_name)
+                print(instance.name)
             self.plot_instance_video_frames_at_times(instance, times=times, show_frame_number=show_frame_number)
 
     def plot_sensor(self, data, title, time_column, axis_columns, axis_labels, xlim=(0,15), linewidth=0.75, figsize=(20, 4)):
