@@ -47,11 +47,7 @@ class SideSeeingPlotter:
         plt.tight_layout()
         plt.show()
 
-    def plot_instance_map(self, instance: sst.SideSeeingInstance, titles='OpenStreetMap', zoom_start=14):
-        if instance is None or not isinstance(instance, sst.SideSeeingInstance):
-            print(f'ERROR. You have to pass an instance (SideSeeingInstance).')
-            return
-        
+    def plot_instance_map(self, instance: sst.SideSeeingInstance, titles='OpenStreetMap', zoom_start=14):        
         points = instance.geolocation_points
         center = instance.geolocation_center
 
