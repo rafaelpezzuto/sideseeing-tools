@@ -46,7 +46,12 @@ def generate_metadata(iterator, datetime_format: str):
         item = {}
 
         item['name'] = i.name
-        item['geolocation_center'] = f'{i.geolocation_center[0]}, {i.geolocation_center[1]}'
+        
+        if hasattr(i, 'geolocation_center'):
+          item['geolocation_center'] = f'{i.geolocation_center[0]}, {i.geolocation_center[1]}'
+        else:
+           item['geolocation_center'] = ''
+
         item['video_start_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStartDateTime', ''), datetime_format)
         item['video_end_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStopDateTime', ''), datetime_format)
         item['video_duration'] = round(v_frames / v_fps, 2)
