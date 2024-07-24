@@ -59,14 +59,17 @@ class SideSeeingDS:
 
         self.sensors = set()
         for i in self.iterator:
-            for name in i.sensors1.keys():
-                self.sensors.add(name)
+            if hasattr(i, 'sensors1'):
+                for name in i.sensors1.keys():
+                    self.sensors.add(name)
 
-            for name in i.sensors3.keys():
-                self.sensors.add(name)
+            if hasattr(i, 'sensors3'):
+                for name in i.sensors3.keys():
+                    self.sensors.add(name)
 
-            for name in i.sensors6.keys():
-                self.sensors.add(name)
+            if hasattr(i, 'sensors6'):
+                for name in i.sensors6.keys():
+                    self.sensors.add(name)
 
     @property
     def instance(self):
@@ -244,7 +247,15 @@ class SideSeeingInstance:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        sensor_dicts = [self.sensors1, self.sensors3, self.sensors6]
+        sensor_dicts = []
+        if hasattr(self, 'sensors1'):
+            sensor_dicts.append(self.sensors1)
+
+        if hasattr(self, 'sensors3'):
+            sensor_dicts.append(self.sensors3)
+
+        if hasattr(self, 'sensors6'):
+            sensor_dicts.append(self.sensors6)
 
         for sensor_dict in sensor_dicts:
             for s, sensor in sensor_dict.items():
