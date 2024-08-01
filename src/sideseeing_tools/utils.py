@@ -74,52 +74,6 @@ def generate_metadata(iterator, datetime_format: str):
     return pd.DataFrame.from_dict(items)
 
 
-def standardize_sensor_name(sensor_name: str):
-  '''
-  Obtains an adequately sensor's name
-  '''
-  sensor_name_lowered = sensor_name.lower()
-
-  if 'accel' in sensor_name_lowered or 'acc' in sensor_name_lowered:
-    if 'linear' in sensor_name_lowered:
-      return 'Linear Accelerometer'
-    return 'Accelerometer'
-
-  if 'grav' in sensor_name_lowered:
-    return 'Gravity'
-
-  if 'gyro' in sensor_name_lowered:
-    if 'uncali' in sensor_name_lowered:
-       return 'Gyroscope Uncalibrated'
-    return 'Gyroscope'
-
-  if 'mag' in sensor_name_lowered:
-    if 'uncali' in sensor_name_lowered:
-       return 'Magnetometer Uncalibrated'
-    return 'Magnetometer'
-
-  if 'light' in sensor_name_lowered or 'lux' in sensor_name_lowered:
-    if 'uncalibrated' in sensor_name_lowered:
-      return 'Light Uncalibrated'
-    return 'Light'
-
-  if 'barome' in sensor_name_lowered:
-    return 'Barometer'
-
-  if 'proximity' in sensor_name_lowered:
-    if 'non' in sensor_name_lowered:
-      return 'Proximity Non-Wakeup'
-    return 'Proximity'
-  
-  if 'pressure' in sensor_name_lowered:
-    if 'non' in sensor_name_lowered:
-      return 'Pressure Non-Wakeup'
-    return 'Pressure'
-
-  print(f'Unknown sensor {sensor_name} has been detected.')
-  return sensor_name
-
-
 def preprocess_sensors(data: dict, num_axes: int, datetime_format: str, start_time=None, end_time=None, debug=False):
   '''
   Converts the sensor data into appropriate data types and assigns time positions.
@@ -138,7 +92,8 @@ def preprocess_sensors(data: dict, num_axes: int, datetime_format: str, start_ti
       ignored_lines += 1
       continue
 
-    sensor_name = standardize_sensor_name(row['name'])
+    sensor_name = row['name']
+
     if sensor_name not in series:
       series[sensor_name] = []
 
