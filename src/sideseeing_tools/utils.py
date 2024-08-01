@@ -121,38 +121,40 @@ def preprocess_sensors(data: dict, num_axes: int, datetime_format: str, start_ti
     print(f'INFO. {ignored_lines} lines has been ignored.')
 
   for key, value in series.items():
-    series[key] = to_dataframe(value, num_axes, datetime_format)
+      value.sort(key=lambda x: x[0])
+      series[key] = to_dataframe(value, num_axes, datetime_format)
 
   return series
 
 
 def preprocess_gps(data: dict):
-   return np.array([[float(d['latitude']), float(d['longitude'])] for d in data])
+	return np.array([[float(d['latitude']), float(d['longitude'])] for d in data])
 
 
 def to_dataframe(data: dict, num_axes: int, datetime_format: str, create_time_column=True):
-  '''
-  Converts data into a Pandas.DataFrame and includes a column to represent the duration in seconds of the time series
-  '''
-  columns = ['Datetime UTC']
+    '''
+    Converts data into a Pandas.DataFrame and includes a column to represent the duration in seconds of the time series.
+    Also returns the count of data points for each sensor axis.
+    '''
+    columns = ['Datetime UTC']
 
-  if num_axes >= 1:
-    columns.append('x')
+    if num_axes >= 1:
+        columns.append('x')
 
-  if num_axes >= 3:
-    columns.extend(['y', 'z'])
+    if num_axes >= 3:
+        columns.extend(['y', 'z'])
 
-  if num_axes == 6:
-    columns.extend(['dx', 'dy', 'dz'])
+    if num_axes == 6:
+        columns.extend(['dx', 'dy', 'dz'])
 
-  df = pd.DataFrame(data, columns=columns)
+    df = pd.DataFrame(data, columns=columns)
 
-  if create_time_column:
-      df['Datetime UTC'] = pd.to_datetime(df['Datetime UTC'], format=datetime_format)
-      df['Time (s)'] = (df['Datetime UTC'] - df['Datetime UTC'].iloc[0]).dt.total_seconds()
-      df = df.sort_values('Time (s)')
+    if create_time_column:
+        df['Datetime UTC'] = pd.to_datetime(df['Datetime UTC'], format=datetime_format)
+        df['Time (s)'] = (df['Datetime UTC'] - df['Datetime UTC'].iloc[0]).dt.total_seconds()
+        df = df.sort_values('Time (s)')
 
-  return df
+    return df
 
 
 def resample_sensor_data(data: pd.DataFrame, target_fps=30):
