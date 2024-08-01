@@ -310,45 +310,6 @@ class SideSeeingPlotter:
 
         return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
     
-    def plot_dataset_sensors3(self, sensor_name: str, initial_xlim=(0, 30), identifiers=[]):
-        '''
-        Creates a subplot composed of 1xn time series where n is the number of instances/samples. It is required to indicate the sensor's name.
-        '''
-        _content = []
-
-        if len(identifiers) == 0:
-            for i in self.dataset.iterator:
-                _content.append([
-                        i.name,
-                        i.sensors3.get(sensor_name, [])
-                ])
-        else:
-            for i in identifiers:
-                _instance = self.dataset.instances.get(i, None)
-                if not _instance:
-                    print(f'WARNING. {i} does not exist.')
-                    continue
-
-                _content.append([
-                        _instance.name,
-                        _instance.sensors3.get(sensor_name, [])
-                ])
-
-        _, axis = plt.subplots(len(_content), 1, figsize=(15, int(len(_content) * 4)), sharex=True)
-
-        for ind, _key_sensor in enumerate(_content):
-            _key, _sensor_data = _key_sensor
-
-            axis[ind].plot(_sensor_data['Time (s)'], _sensor_data['x'], label='x', linewidth=0.75)
-            axis[ind].plot(_sensor_data['Time (s)'], _sensor_data['y'], label='y', linewidth=0.75)
-            axis[ind].plot(_sensor_data['Time (s)'], _sensor_data['z'], label='z', linewidth=0.75)
-            axis[ind].set_title(_key)
-            axis[ind].legend()
-            axis[ind].set_xlim(initial_xlim)
-
-        plt.tight_layout()
-        plt.show()
-
     def plot_dataset_map(self, titles='OpenStreetMap', zoom_start=4):
         points = np.vstack([i.geolocation_points for i in self.dataset.iterator])
         center = points.mean(axis=0)
@@ -445,14 +406,42 @@ class SideSeeingPlotter:
                 print(instance.name)
             self.plot_instance_video_frames_at_times(instance, times=times, show_frame_number=show_frame_number)
 
-    def plot_sensor(self, data, title, time_column, axis_columns, axis_labels, xlim=(0,15), linewidth=0.75, figsize=(20, 4)):
+    def plot_sensor(self, data, time_column, axis_columns, xlim=None, ylim=None, title=None, linewidth=0.75, figsize=(20, 4)):
         fig, ax = plt.subplots(nrows=1, figsize=figsize)
 
         for ind, a in enumerate(axis_columns):
-            ax.plot(data[time_column], data[a], label=axis_labels[ind], linewidth=linewidth)
+            ax.plot(data[time_column], data[a], label=axis_columns[ind], linewidth=linewidth)
 
         ax.set_title(title)
-        ax.set_xlim(xlim)
-        ax.legend()
 
+        if xlim:
+            ax.set_xlim(xlim)
+
+        if ylim:
+            ax.set_ylim(ylim)
+
+        ax.legend()
         fig.show()
+
+    def plot_sensors(self, data, time_column, axis_columns, xlim=None, ylim=None, linewidth=0.75, sharex=True, sharey=True):
+        if len(data) == 0:
+            return
+
+        _, axis = plt.subplots(len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey)
+
+        for ind_plot, item in enumerate(data):
+            instance_name = item['instance_name']
+            sensor_data = item['sensor_data']
+
+            for ind, column in enumerate(axis_columns):
+                axis[ind_plot].plot(sensor_data[time_column], sensor_data[column], label=axis_columns[ind], linewidth=linewidth)
+                axis[ind_plot].set_title(instance_name)
+                axis[ind_plot].legend()
+    
+            if xlim:
+                axis[ind_plot].set_xlim(xlim)
+            if ylim:
+                axis[ind_plot].set_ylim(ylim)
+
+        plt.tight_layout()
+        plt.show()
