@@ -32,10 +32,48 @@ __Get a random sample from the dataset__
 my_sample = ds.instance
 ```
 
+__Check the available sensors by instance__
+```python
+ds.sensors
+# This command will produce output like this:
+
+{
+    # A key representing the number of available axes
+    'sensors1': {
+        # A key representing the sensor name
+        'lps22h barometer sensor': {
+            # Keys representing the instances where the sensor data is found
+            'FhdFastest#S10e-2024-08-01-10-42-43-354',
+            'FhdGame#S10e-2024-08-01-10-25-08-383',
+            'FhdNormal#S10e-2024-08-01-10-02-18-947',
+            'FhdUi#S10e-2024-08-01-10-13-50-369'
+        },
+        'tcs3407 uncalibrated lux sensor': {
+            'FhdFastest#S10e-2024-08-01-10-42-43-354',
+            ...
+        },
+        ...
+    },
+    'sensors3': {
+        'ak09918c magnetic field sensor': {...},
+        'bmi160_accelerometer accelerometer non-wakeup': {
+            'FhdFastest#Mia3-2024-08-01-10-42-44-639',
+            'FhdNormal#Mia3-2024-08-01-10-02-22-118',
+            ...
+        },
+        ...
+    },
+    'sensors6': {
+        ...
+    }
+}
+```
+
 __Get accelerometer data from the sample__
 ```python
-my_accel_data = ds.instance.sensors3['Accelerometer']
-my_accel_data
+my_sample = ds.instances['FhdNormal#Mia3-2024-08-01-10-02-22-118']
+my_sample_accel_data = my_sample.sensors3['bmi160_accelerometer accelerometer non-wakeup']
+my_sample_accel_data
 ```
 
 |    | Datetime UTC               |       x |         y |       z |   Time (s) |
@@ -93,29 +131,11 @@ from sideseeing_tools import utils
 
 # Extract a 15-second snippet from the sensor data, beginning at the 3-second mark and ending at the 18-second mark
 utils.extract_sensor_snippet(
-    data=my_sample.sensors3['My sensor name'],  # DataFrame containing sensor data
-    start_time=3,                               # Start time of the snippet (in seconds)
-    end_time=18,                                # End time of the snippet (in seconds)
-    output_path='my_sensor_snippet.csv'         # Path to save the extracted sensor snippet
+    data=my_sample.sensors3['bmi160_accelerometer accelerometer non-wakeup'],  # DataFrame containing sensor data
+    start_time=3,                                                              # Start time of the snippet (in seconds)
+    end_time=18,                                                               # End time of the snippet (in seconds)
+    output_path='my_sensor_snippet.csv'                                        # Path to save the extracted sensor snippet
 )
-```
-
-__Show available sensors in the dataset__
-```python
-ds.sensors
-
-# Output:
-# {
-#     'Accelerometer',
-#     'Barometer',
-#     'Gravity',
-#     'Gyroscope',
-#     'Gyroscope Uncalibrated',
-#     'Light Uncalibrated',
-#     'Linear Accelerometer',
-#     'Magnetometer',
-#     'Magnetometer Uncalibrated'
-# }
 ```
 
 __Iterate over the samples__
@@ -132,9 +152,9 @@ from sideseeing_tools import plot
 plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.csv')
 
 # Available methods:
+#   .generate_video_sensor3()
 #   .plot_dataset_cities()
 #   .plot_dataset_map()
-#   .plot_dataset_sensors3()
 #   .plot_dataset_tags_matrix()
 #   .plot_dataset_tags()
 #   .plot_instance_audio()
@@ -142,7 +162,8 @@ plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.cs
 #   .plot_instance_sensors3_and_audio()
 #   .plot_instance_video_frames_at_times()
 #   .plot_instance_video_frames()
-#   .generate_video_sensor3()
+#   .plot_sensor()
+#   .plot_sensors()
 ```
 
 
