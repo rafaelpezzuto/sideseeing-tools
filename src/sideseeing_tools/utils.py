@@ -15,11 +15,18 @@ def load_csv_data(path: str, fieldnames: list, delimiter=','):
     data = []
 
     with open(path) as fin:
-        for row in csv.DictReader(fin, fieldnames=fieldnames, delimiter=delimiter):
-          new_row = {}
-          for k, v in row.items():
-            new_row[k.strip().lower()] = v.strip().lower()
-          data.append(new_row)
+        reader = csv.reader(fin, delimiter=delimiter)
+        first_row = next(reader)
+        
+        if [field.strip().lower() for field in first_row] == [field.strip().lower() for field in fieldnames]:
+            fin.seek(0)
+            reader = csv.DictReader(fin, delimiter=delimiter)
+        else:
+            reader = csv.DictReader(fin, fieldnames=fieldnames, delimiter=delimiter)
+
+        for row in reader:
+            new_row = {k.strip().lower(): v.strip().lower() for k, v in row.items()}
+            data.append(new_row)
 
     return data
 
