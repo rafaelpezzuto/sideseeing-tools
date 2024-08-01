@@ -57,19 +57,22 @@ class SideSeeingDS:
         for key in self.instances.keys():
             self.instances[key].setup(extract_media)
 
-        self.sensors = set()
-        for i in self.iterator:
-            if hasattr(i, 'sensors1'):
-                for name in i.sensors1.keys():
-                    self.sensors.add(name)
+        self.populate_sensors()
 
-            if hasattr(i, 'sensors3'):
-                for name in i.sensors3.keys():
-                    self.sensors.add(name)
+    def populate_sensors(self):
+        self.sensors = {
+            'sensors1': {},
+            'sensors3': {},
+            'sensors6': {},
+        }
 
-            if hasattr(i, 'sensors6'):
-                for name in i.sensors6.keys():
-                    self.sensors.add(name)
+        for instance in self.iterator:
+            for n_axis in self.sensors.keys():
+                if hasattr(instance, n_axis):
+                    for name in getattr(instance, n_axis).keys():
+                        if name not in self.sensors[n_axis]:
+                            self.sensors[n_axis][name] = set()
+                        self.sensors[n_axis][name].add(instance.name)
 
     @property
     def instance(self):
