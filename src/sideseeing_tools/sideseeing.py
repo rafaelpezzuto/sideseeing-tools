@@ -272,7 +272,7 @@ class SideSeeingInstance:
             self.video, 
             start_time, 
             end_time, 
-            os.path.join(output_dir, f'video_{start_time}_{end_time}.mp4'),
+            os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time)),
         )
 
     def _write_sensors_snippet(self, start_time, end_time, output_dir):
