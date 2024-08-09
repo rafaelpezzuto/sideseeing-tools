@@ -203,13 +203,24 @@ class SideSeeingInstance:
 
         for k, v in self.files.items():
             if k == 'consumption':
-                self.consumption = utils.load_csv_data(v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES)
+                self.consumption = utils.preprocess_consumption(
+                    utils.load_csv_data(v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES),
+                    constants.DATETIME_UTC_FORMAT,
+                    self.video_start_time,
+                    self.video_stop_time,
+                )
 
             if k == 'gps':
                 self.geolocation_points = utils.preprocess_gps(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES)
+                    utils.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES),
+                    constants.DATETIME_UTC_FORMAT,
+                    self.video_start_time,
+                    self.video_stop_time,
                 )
-                self.geolocation_center = self.geolocation_points.mean(axis=0)
+                if not self.geolocation_points.empty:
+                    self.geolocation_center = self.geolocation_points[['latitude', 'longitude']].mean().tolist()
+                else:
+                    self.geolocation_center = None
 
             if k == 'sensors3':
                 self.sensors3 = utils.preprocess_sensors(
@@ -249,26 +260,13 @@ class SideSeeingInstance:
 
     def extract_snippet(self, start_time, end_time, output_dir):
         if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
 
-        sensor_dicts = []
-        if hasattr(self, 'sensors1'):
-            sensor_dicts.append(self.sensors1)
+        self._write_gps_snippet(start_time, end_time, output_dir)
 
-        if hasattr(self, 'sensors3'):
-            sensor_dicts.append(self.sensors3)
-
-        if hasattr(self, 'sensors6'):
-            sensor_dicts.append(self.sensors6)
-
-        for sensor_dict in sensor_dicts:
-            for s, sensor in sensor_dict.items():
-                utils.extract_sensor_snippet(
-                    sensor,
-                    start_time,
-                    end_time,
-                    output_path=os.path.join(output_dir, f'{s.lower()}_{start_time}_{end_time}.csv')
-                )
+        self._write_consumption_snippet(start_time, end_time, output_dir)
+            
+        self._write_sensors_snippet(start_time, end_time, output_dir)
 
         media.extract_video_snippet(
             self.video, 
@@ -276,3 +274,62 @@ class SideSeeingInstance:
             end_time, 
             os.path.join(output_dir, f'video_{start_time}_{end_time}.mp4'),
         )
+
+    def _write_sensors_snippet(self, start_time, end_time, output_dir):
+        sensor_configs = [
+            ('sensors1', constants.ONE_AXIS_SNIPPET_FILE_NAME, constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
+            ('sensors3', constants.THREE_AXES_SNIPPET_FILE_NAME, constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
+            ('sensors6', constants.THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME, constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
+        ]
+
+        for naxes, file_name, fields in sensor_configs:
+            output_file = os.path.join(output_dir, file_name.format(start_time, end_time))
+            sensors = getattr(self, naxes, {})
+
+            with open(output_file, 'w') as fout:
+                fout.write(','.join(fields) + '\n')
+                
+                for sensor_name, sensor_data in sensors.items():
+                    sensor_snippet_data = utils.extract_dataframe_snippet(sensor_data, start_time, end_time)
+                    axis_data = []
+                    for col in fields:
+                        if col in ['axis_x', 'axis_y', 'axis_z']:
+                            axis_data.append(col.replace('axis_', ''))
+                        elif col in ['delta_x', 'delta_y', 'delta_z']:
+                            axis_data.append(col.replace('delta_', ''))
+
+                    for _, row in sensor_snippet_data.iterrows():
+                        formatted_row = [
+                            row['timestamp_nano'],
+                            row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                            sensor_name,
+                        ] + [row[a] for a in axis_data] + [row['accuracy']]
+        
+                        fout.write(','.join(map(str, formatted_row)) + '\n')
+
+    def _write_consumption_snippet(self, start_time, end_time, output_dir):
+        consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, end_time))
+        consumption_snippet_data = utils.extract_dataframe_snippet(self.consumption, start_time, end_time)
+        with open(consumption_snippet_output_file, 'w') as fout:
+            fout.write(','.join(constants.CONSUMPTION_FILE_FIELDNAMES) + '\n')
+            for _, row in consumption_snippet_data.iterrows():
+                formatted_row = [
+                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                    row['battery_microamperes']
+                ]
+                fout.write(','.join(map(str, formatted_row)) + '\n')
+
+    def _write_gps_snippet(self, start_time, end_time, output_dir):
+        gps_snippet_output_file = os.path.join(output_dir, constants.GPS_SNIPPET_FILE_NAME.format(start_time, end_time))
+        gps_snippet_data = utils.extract_dataframe_snippet(self.geolocation_points, start_time, end_time)
+        with open(gps_snippet_output_file, 'w') as fout:
+            fout.write(','.join(constants.GPS_FILE_FIELDNAMES) + '\n')
+            for _, row in gps_snippet_data.iterrows():
+                formatted_row = [
+                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                    row['gps_interval'],
+                    row['accuracy'],
+                    row['latitude'],
+                    row['longitude']
+                ]
+                fout.write(','.join(map(str, formatted_row)) + '\n')
