@@ -48,7 +48,7 @@ class SideSeeingPlotter:
         plt.show()
 
     def plot_instance_map(self, instance: sst.SideSeeingInstance, titles='OpenStreetMap', zoom_start=14):        
-        points = instance.geolocation_points
+        points = instance.geolocation_points[['latitude', 'longitude']].values.tolist()
         center = instance.geolocation_center
 
         if len(points) > 0:
@@ -311,7 +311,7 @@ class SideSeeingPlotter:
         return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
     
     def plot_dataset_map(self, titles='OpenStreetMap', zoom_start=4):
-        points = np.vstack([i.geolocation_points for i in self.dataset.iterator])
+        points = np.vstack([i.geolocation_points[['latitude', 'longitude']].tolist() for i in self.dataset.iterator])
         center = points.mean(axis=0)
 
         ds_map = folium.Map(location=center, titles=titles, zoom_start=zoom_start)
