@@ -75,77 +75,123 @@ def generate_metadata(iterator, datetime_format: str):
 
 
 def preprocess_sensors(data: dict, num_axes: int, datetime_format: str, start_time=None, end_time=None, debug=False):
-  '''
-  Converts the sensor data into appropriate data types and assigns time positions.
-  '''
-  series = {}
-  ignored_lines = 0
+    series = {}
+    ignored_lines = 0
 
-  for row in data:
-    ts = datetime.datetime.strptime(row['datetime_utc'], datetime_format)
+    for row in data:
+        ts = datetime.datetime.strptime(row['datetime_utc'], datetime_format)
 
-    if start_time is not None and ts < start_time:
-      ignored_lines += 1
-      continue
+        if start_time is not None and ts < start_time:
+            ignored_lines += 1
+            continue
 
-    if end_time is not None and ts > end_time:
-      ignored_lines += 1
-      continue
+        if end_time is not None and ts > end_time:
+            ignored_lines += 1
+            continue
 
-    sensor_name = row['name']
+        sensor_name = row['name']
 
-    if sensor_name not in series:
-      series[sensor_name] = []
+        if sensor_name not in series:
+            series[sensor_name] = []
 
-    current_data = [ts]
+        current_data = [ts]
 
-    if num_axes >= 1:
-      current_data.append(float(row['axis_x']))
+        if num_axes >= 1:
+            current_data.append(float(row['axis_x']))
 
-    if num_axes >= 3:
-      current_data.extend([
-        float(row['axis_y']),
-        float(row['axis_z']),
-      ])
+        if num_axes >= 3:
+            current_data.extend([
+                float(row['axis_y']),
+                float(row['axis_z']),
+            ])
 
-    if num_axes == 6:
-      current_data.extend([
-        float(row['delta_x']),
-        float(row['delta_y']),
-        float(row['delta_z']),
-      ])
+        if num_axes == 6:
+            current_data.extend([
+                float(row['delta_x']),
+                float(row['delta_y']),
+                float(row['delta_z']),
+            ])
 
-    series[sensor_name].append(current_data)
+        current_data.append(row['timestamp_nano'])
+        current_data.append(row['accuracy'])
+        current_data.append(row['name'])
 
-  if ignored_lines > 0 and debug:
-    print(f'INFO. {ignored_lines} lines has been ignored.')
+        series[sensor_name].append(current_data)
 
-  for key, value in series.items():
-      value.sort(key=lambda x: x[0])
-      series[key] = to_dataframe(value, num_axes, datetime_format)
+    if ignored_lines > 0 and debug:
+        print(f'INFO. {ignored_lines} lines has been ignored.')
 
-  return series
+    for key, value in series.items():
+        value.sort(key=lambda x: x[0])
+        series[key] = to_dataframe(value, num_axes, datetime_format)
 
-
-def preprocess_gps(data: dict):
-	return np.array([[float(d['latitude']), float(d['longitude'])] for d in data])
+    return series
 
 
-def to_dataframe(data: dict, num_axes: int, datetime_format: str, create_time_column=True):
+def preprocess_consumption(data: dict, datetime_format: str, start_time=None, end_time=None):
+    rows = []
+    ignored_lines = 0
+
+    for row in data:
+        ts = datetime.datetime.strptime(row['datetime_utc'], datetime_format)
+
+        if start_time is not None and ts < start_time:
+            ignored_lines += 1
+            continue
+
+        if end_time is not None and ts > end_time:
+            ignored_lines += 1
+            continue
+        
+        rows.append([ts, float(row['battery_microamperes'])])
+    
+    return to_dataframe(sorted(rows, key=lambda x: x[0]), 1, datetime_format, data_type='consumption')
+
+
+def preprocess_gps(data: dict, datetime_format: str, start_time=None, end_time=None):
+    rows = []
+    ignored_lines = 0
+
+    for row in data:
+        ts = datetime.datetime.strptime(row['datetime_utc'], datetime_format)
+
+        if start_time is not None and ts < start_time:
+            ignored_lines += 1
+            continue
+
+        if end_time is not None and ts > end_time:
+            ignored_lines += 1
+            continue
+
+        rows.append([ts] + [float(c) for c in [row['gps_interval'], row['accuracy'], row['latitude'], row['longitude']]])
+
+    return to_dataframe(rows, 1, datetime_format, data_type='gps')
+
+
+def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', create_time_column=True):
     '''
     Converts data into a Pandas.DataFrame and includes a column to represent the duration in seconds of the time series.
     Also returns the count of data points for each sensor axis.
     '''
     columns = ['Datetime UTC']
 
-    if num_axes >= 1:
-        columns.append('x')
+    if data_type == 'sensor':
+        if num_axes >= 1:
+            columns.append('x')
 
-    if num_axes >= 3:
-        columns.extend(['y', 'z'])
+        if num_axes >= 3:
+            columns.extend(['y', 'z'])
 
-    if num_axes == 6:
-        columns.extend(['dx', 'dy', 'dz'])
+        if num_axes == 6:
+            columns.extend(['dx', 'dy', 'dz'])
+
+        columns.extend(['timestamp_nano', 'accuracy', 'name'])
+
+    elif data_type == 'consumption':
+        columns.extend(['battery_microamperes',])
+
+    elif data_type == 'gps':
+        columns.extend(['gps_interval', 'accuracy', 'latitude', 'longitude',])
 
     df = pd.DataFrame(data, columns=columns)
 
@@ -216,7 +262,7 @@ def inverse_geocode_from_google(latitude: float, longitude: float, key: str):
     return data
 
 
-def extract_sensor_snippet(data: pd.DataFrame, start_time, end_time, output_path):
+def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_path=None):
     if data.empty:
         print('ERROR. The input DataFrame is empty.')
         return None
@@ -233,6 +279,7 @@ def extract_sensor_snippet(data: pd.DataFrame, start_time, end_time, output_path
     
     snippet = data[(data['Time (s)'] >= start_time) & (data['Time (s)'] <= end_time)]
     
-    snippet.to_csv(output_path, sep=',', columns=data.columns, index=False)
+    if output_path:
+        snippet.to_csv(output_path, sep=',', columns=data.columns, index=False)
     
     return snippet
