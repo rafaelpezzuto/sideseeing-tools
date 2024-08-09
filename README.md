@@ -24,7 +24,7 @@ ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
 # Available attributes and methods
 #   .metadata() // Tip: generates and prints the dataset metadata
 #   .size       // Tip: shows the number of instances  
-#   .sensors    // Tip: lists the names of the available sensors
+#   .sensors    // Tip: a dictionary containing the names of the available sensors
 ```
 
 __Get a random sample from the dataset__
@@ -94,25 +94,23 @@ my_sample.extract_snippet(
 )
 ```
 
-Running the command `extract_snippet` will generate one file for the video (with audio) and one file for each sensor present in the instance. See an illustrative example in the following file tree.
+Running the command `extract_snippet` will generate one file for the video (with audio), one file for consumption data, one file for GPS data, and one file for each sensor type (single-axis, three-axis, three-axis uncalibrated) present in the instance. See an illustrative example in the following file tree.
 
 ```text
 home/
 ├─ user/
 │  ├─ snippet_2_17/
-│  │  ├─ accelerometer_2_12.csv
-│  │  ├─ barometer_2_12.csv
-│  │  ├─ gravity_2_12.csv
-│  │  ├─ gyroscope_2_12.csv
-│  │  ├─ gyroscope uncalibrated_2_12.csv
-│  │  ├─ light uncalibrated_2_12.csv
-│  │  ├─ linear accelerometer_2_12.csv
-│  │  ├─ magnetometer_2_12.csv
-│  │  ├─ magnetometer uncalibrated_2_12.csv
-│  │  ├─ video_2_12.mp4
+│  │  ├─ consumption.2_17.csv
+│  │  ├─ gps.2_17.csv
+│  │  ├─ sensors.one.2_17.csv
+│  │  ├─ sensors.three.2_17.csv
+│  │  ├─ sensors.three.uncalibrated.2_17.csv
+│  │  ├─ video.2_17.mp4
 ```
 
-__Extract a snippet for a video__
+__Extract only video snippets__
+
+It is possible to extract a snippet from a video (and only the video) using the extract_video_snippet function.
 ```python
 from sideseeing_tools import media
 
@@ -122,19 +120,6 @@ media.extract_video_snippet(
     start_second=3,                 # Start time of the snippet (in seconds)
     end_second=18,                  # End time of the snippet (in seconds)
     output_path='my_snippet.mp4'    # Path to save the extracted snippet
-)
-```
-
-__Extract a snippet for sensor data__
-```python
-from sideseeing_tools import utils
-
-# Extract a 15-second snippet from the sensor data, beginning at the 3-second mark and ending at the 18-second mark
-utils.extract_sensor_snippet(
-    data=my_sample.sensors3['bmi160_accelerometer accelerometer non-wakeup'],  # DataFrame containing sensor data
-    start_time=3,                                                              # Start time of the snippet (in seconds)
-    end_time=18,                                                               # End time of the snippet (in seconds)
-    output_path='my_sensor_snippet.csv'                                        # Path to save the extracted sensor snippet
 )
 ```
 
@@ -152,7 +137,7 @@ from sideseeing_tools import plot
 plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.csv')
 
 # Available methods:
-#   .generate_video_sensor3()
+#   .generate_video_for_sensor()
 #   .plot_dataset_cities()
 #   .plot_dataset_map()
 #   .plot_dataset_tags_matrix()
@@ -250,7 +235,7 @@ The following data outlines the specifications of sensor content before SideSeei
 
 | Attribute or method | Description |
 | ------------------- | ----------- |
-| `geolocation_points`  | List of latitude and longitude coordinates representing geographical points. |
+| `geolocation_points`  | Dictionary containing geolocation data, including latitude and longitude coordinates representing geographical points. |
 | `geolocation_center`  | Latitude and longitude coordinates representing the geographic center of a specific area. |
 | `audio`               | Path to the audio file associated with the collected data. |
 | `gif`                 | Path to the GIF file associated with the collected data. |
@@ -261,7 +246,7 @@ The following data outlines the specifications of sensor content before SideSeei
 | `label`               | List of categories and tags representing the taxonomy of sidewalks. |
 | `video_start_time`    | Start time of the video associated with the collected data. |
 | `video_stop_time`     | Stop time of the video associated with the collected data. |
-| `extract_snippet`     | Extracting a snippet from the sample (video and sensor data). |
+| `extract_snippet`     | Extracting a snippet from the sample (video, sensor, gps and consumption data). |
 
 
 ## Author
