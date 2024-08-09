@@ -49,16 +49,40 @@ THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES = [
   'accuracy',
 ]
 
+ONE_AXIS_FILE_NAME = 'sensors.one.csv'
+
+ONE_AXIS_SNIPPET_FILE_NAME = 'sensors.one.{}_{}.csv'
+
+THREE_AXES_FILE_NAME = 'sensors.three.csv'
+
+THREE_AXES_SNIPPET_FILE_NAME = 'sensors.three.{}_{}.csv'
+
+THREE_AXES_UNCALIBRATED_FILE_NAME = 'sensors.three.uncalibrated.csv'
+
+THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME = 'sensors.three.uncalibrated.{}_{}.csv'
+
+GPS_FILE_NAME = 'gps.csv'
+
+GPS_SNIPPET_FILE_NAME = 'gps.{}_{}.csv'
+
+CONSUMPTION_FILE_NAME = 'consumption.csv'
+
+CONSUMPTION_SNIPPET_FILE_NAME = 'consumption.{}_{}.csv'
+
+VIDEO_FILE_NAME = 'video.mp4'
+
+VIDEO_SNIPPET_FILE_NAME = 'video.{}_{}.mp4'
+
 SUPPORTED_FILES = [
-  'consumption.csv',
-  'gps.csv',
+  CONSUMPTION_FILE_NAME,
+  GPS_FILE_NAME,
+  ONE_AXIS_FILE_NAME,
+  THREE_AXES_FILE_NAME,
+  THREE_AXES_UNCALIBRATED_FILE_NAME,
   'metadata.json',
-  'sensors.three.csv',
   'video.gif',
   'video.wav',
   'labels.txt',
   'labels.csv',
-  'sensors.one.csv',
-  'sensors.three.uncalibrated.csv',
-  'video.mp4',
+  VIDEO_FILE_NAME,
 ]
