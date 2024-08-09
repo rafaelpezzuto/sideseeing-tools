@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import random
+import re
 
 from sideseeing_tools import (
     constants, 
@@ -132,15 +133,15 @@ class SideSeeingFile:
             return 'metadata'
         elif (self.file_name.endswith('labels.txt') or self.file_name.endswith('labels.csv')):
             return 'label'
-        elif self.file_name.endswith('consumption.csv'):
+        elif re.search(r'consumption(\.\d+_\d+)?\.csv$', self.file_name):
             return 'consumption'
-        elif self.file_name.endswith('gps.csv'):
+        elif re.search(r'gps(\.\d+_\d+)?\.csv$', self.file_name):
             return 'gps'
-        elif self.file_name.endswith('sensors.three.csv'):
+        elif re.search(r'sensors\.three(\.\d+_\d+)?\.csv$', self.file_name):
             return 'sensors3'
-        elif self.file_name.endswith('sensors.three.uncalibrated.csv'):
+        elif re.search(r'sensors\.three\.uncalibrated(\.\d+_\d+)?\.csv$', self.file_name):
             return 'sensors6'
-        elif self.file_name.endswith('sensors.one.csv'):
+        elif re.search(r'sensors\.one(\.\d+_\d+)?\.csv$', self.file_name):
             return 'sensors1'
         elif self.file_name.endswith('.mp4'):
             return 'video'
