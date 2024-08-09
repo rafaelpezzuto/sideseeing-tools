@@ -1,0 +1,20 @@
+adjacent road type,residential
+obstacles,car barrier
+obstacles,construction material
+obstacles,dirt
+obstacles,ground vegetation
+obstacles,manhole cover
+obstacles,pole
+obstacles,rock
+obstacles,trash can
+obstacles,tree leaves
+obstacles,trunck
+pavement condition,broken
+pavement condition,corrugation
+pavement condition,cracked
+pavement condition,detached
+pavement condition,patching
+pavement condition,pothole
+sidewalk geometry,height difference
+sidewalk structure,ramp
+surface type,concrete
