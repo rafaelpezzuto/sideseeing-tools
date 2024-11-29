@@ -256,6 +256,17 @@ class SideSeeingInstance:
                     self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
 
     def extract_snippet(self, start_time, end_time, output_dir):
+        '''
+        Extract a snippet from the instance.
+
+        Args:
+            start_time (int): The start time in seconds.
+            end_time (int): The end time in seconds.
+            output_dir (str): The output directory where the snippet will be saved.
+        
+        Returns:
+            None
+        '''
         if not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
 
