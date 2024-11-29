@@ -341,3 +341,116 @@ class SideSeeingInstance:
                     row['longitude']
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
+
+    def extract_frames(self, output_dir, step=None, prefix='', left_zeros='5'):
+        '''
+        Extract frames from the video.
+
+        Args:
+            output_dir (str): The output directory where the frames will be saved.
+            step (int): The rate at which frames are extracted.
+            prefix (str): A prefix for the frame file names.
+            left_zeros (str): The number of left zeros for the frame file names.
+        
+        Returns:
+            list: A list of the extracted frames file paths.
+        '''
+        return media.extract_frames(
+            self.video, 
+            output_dir,
+            step,
+            prefix,
+            left_zeros,
+        )
+
+    def extract_frames_at_times(self, output_dir, times, prefix='', left_zeros='5'):
+        '''
+        Extract frames at specific times from the video.
+
+        Args:
+            output_dir (str): The output directory where the frames will be saved.
+            times (list): A list of times in seconds.
+            prefix (str): A prefix for the frame file names.
+            left_zeros (str): The number of left zeros for the frame file names.
+
+        Returns:
+            list: A list of the extracted frames file paths.
+        '''
+        return media.extract_frames_at_times(
+            self.video,
+            output_dir,
+            times,
+            prefix,
+            left_zeros,
+        )
+    
+    def extract_frames_at_positions(self, output_dir, positions, prefix='', left_zeros='5'):
+        '''
+        Extract frames at specific positions from the video.
+
+        Args:
+            output_dir (str): The output directory where the frames will be saved.
+            positions (list): A list of frame positions.
+            prefix (str): A prefix for the frame file names.
+            left_zeros (str): The number of left zeros for the frame file names.
+
+        Returns:
+            list: A list of the extracted frames file paths.
+        '''
+        return media.extract_frames_at_positions(
+            self.video,
+            output_dir,
+            positions,
+            prefix,
+            left_zeros,
+        )
+    
+    def extract_frames_timespan(self, output_dir, start_time, end_time, step=None, prefix='', left_zeros='5'):
+        '''
+        Extract frames from a timespan of the video.
+
+        Args:
+            output_dir (str): The output directory where the frames will be saved.
+            start_time (int): The start time in seconds.
+            end_time (int): The end time in seconds.
+            step (int): The rate at which frames are extracted.
+            prefix (str): A prefix for the frame file names.
+            left_zeros (str): The number of left zeros for the frame file names.
+
+        Returns:
+            list: A list of the extracted frames file paths.
+        '''
+        return media.extract_frames_timespan(
+            self.video,
+            output_dir,
+            start_time,
+            end_time,
+            step,
+            prefix,
+            left_zeros,
+        )
+
+    def extract_frames_positionspan(self, output_dir, start_position, end_position, step=None, prefix='', left_zeros='5'):
+        '''
+        Extract frames from a position span of the video.
+
+        Args:
+            output_dir (str): The output directory where the frames will be saved.
+            start_position (int): The start position in frames.
+            end_position (int): The end position in frames.
+            step (int): The rate at which frames are extracted.
+            prefix: (str): A prefix for the frame file names.
+            left_zeros (str): The number of left zeros for the frame file names.
+
+        Returns:
+            list: A list of the extracted frames file paths.
+        '''
+        return media.extract_frames_positionspan(
+            self.video,
+            output_dir,
+            start_position,
+            end_position,
+            step,
+            prefix,
+            left_zeros,
+        )
