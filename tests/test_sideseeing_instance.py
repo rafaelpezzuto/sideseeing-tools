@@ -89,7 +89,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             
             self.instance.extract_snippet(start_time, end_time, str(output_dir))
 
-            video_tmp_file = (output_dir / f"video_{start_time}_{end_time}.mp4")
+            video_tmp_file = (output_dir / f"video.{start_time}_{end_time}.mp4")
             self.assertTrue(video_tmp_file.exists())
 
     def test_extract_snippet_sensors1_is_ok(self):
