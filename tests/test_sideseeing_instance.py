@@ -43,7 +43,6 @@ class TestSideSeeingInstance(unittest.TestCase):
                     '2024-01-06T15:00:05.104Z,15.0,21.932,-23.5395938,-46.7073943'
                 )
 
-
     def test_extract_snippet_consumption_is_ok(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)
