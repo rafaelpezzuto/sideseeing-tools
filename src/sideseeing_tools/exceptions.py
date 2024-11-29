@@ -1,9 +1,6 @@
 class RootDirIsNotADirectoryError(Exception):
   ...
 
-class RootDirDoesNotExistError(Exception):
-  ...
-
 class MetadataFileDoesNotExistError(Exception):
   ...
 

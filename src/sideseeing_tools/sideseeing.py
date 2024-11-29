@@ -27,9 +27,6 @@ class SideSeeingDS:
         if not os.path.isdir(root_dir):
             raise exceptions.RootDirIsNotADirectoryError()
 
-        if not os.path.exists(root_dir):
-            raise exceptions.RootDirDoesNotExistError()
-
         self.root_dir = root_dir if root_dir.endswith(os.path.sep) else f'{root_dir}{os.path.sep}'
         self.data_dir = os.path.join(self.root_dir, subdir_data)
         self.setup(extract_media)
