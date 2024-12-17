@@ -9,7 +9,7 @@ pip install sideseeing-tools
 ```
 
 
-## Usage
+## General Usage
 
 __Create a dataset__
 ```python
@@ -151,6 +151,172 @@ plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.cs
 #   .plot_sensors()
 ```
 
+## Frame Extraction Methods
+
+The following methods provide flexible and efficient ways to extract frames from video files, either saving them to disk or returning them in memory for immediate use in your applications. While using the methods below, you can opt for saving the frames to disk or returning them in memory.
+
+__`extract_frames_at_times`__
+
+This method extracts frames from a video file at the specified time points and saves them as image files.
+
+**Parameters:**
+- `source_path` (str): Path to the source video file.
+- `frame_times` (list): List of time points (in seconds) at which frames should be extracted.
+- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
+- `prefix` (str, optional): Prefix to be added to the frame file names.
+- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
+
+**Returns:**
+- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
+
+__`extract_frames_at_positions`__
+
+This method extracts frames from a video file at the specified frame positions and saves them as image files.
+
+**Parameters:**
+- `source_path` (str): Path to the source video file.
+- `frame_positions` (list): List of frame positions at which frames should be extracted.
+- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
+- `prefix` (str, optional): Prefix to be added to the frame file names.
+- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
+
+**Returns:**
+- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
+
+__`extract_frames_timespan`__
+
+This method extracts frames from a video file within a specified time span and saves them as image files.
+
+**Parameters:**
+- `source_path` (str): Path to the source video file.
+- `start_time` (float): The start time (in seconds) of the time span from which frames should be extracted.
+- `end_time` (float): The end time (in seconds) of the time span from which frames should be extracted.
+- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
+- `step` (int, optional): The rate at which frames are extracted.
+- `prefix` (str, optional): Prefix to be added to the frame file names.
+- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
+
+**Returns:**
+- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
+
+__`extract_frames_positionspan`__
+
+This method extracts frames from a video file within a specified position span and saves them as image files.
+
+**Parameters:**
+- `source_path` (str): Path to the source video file.
+- `start_frame` (int): The start frame position from which frames should be extracted.
+- `end_frame` (int): The end frame position from which frames should be extracted.
+- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
+- `step` (int, optional): The rate at which frames are extracted.
+- `prefix` (str, optional): Prefix to be added to the frame file names.
+- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
+
+**Returns:**
+- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
+
+__`extract_frames`__
+
+This method extracts frames from a video file at a specified frame rate and saves them as image files.
+
+**Parameters:**
+- `source_path` (str): Path to the source video file.
+- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
+- `step` (int, optional): The rate at which frames are extracted.
+- `prefix` (str, optional): Prefix to be added to the frame file names.
+- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
+
+**Returns:**
+- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
+
+### Example Usage
+
+```python
+from sideseeing_tools import media
+
+# Extract frames at specific times and save to disk
+media.extract_frames_at_times(
+    source_path=video_path,
+    frame_times=[1.0, 2.0, 3.0],
+    target_dir='output',
+    prefix='frame_',
+    left_zeros=5
+)
+
+# Extract frames at specific times and return in memory
+frames = media.extract_frames_at_times(
+    source_path=video_path,
+    frame_times=[1.0, 2.0, 3.0]
+)
+
+# Extract frames at specific positions and save to disk
+media.extract_frames_at_positions(
+    source_path=video_path,
+    frame_positions=[30, 60, 90],
+    target_dir='output',
+    prefix='frame_',
+    left_zeros=5
+)
+
+# Extract frames at specific positions and return in memory
+frames = media.extract_frames_at_positions(
+    source_path=video_path,
+    frame_positions=[30, 60, 90]
+)
+
+# Extract frames within a timespan and save to disk
+media.extract_frames_timespan(
+    source_path=video_path,
+    start_time=10.0,
+    end_time=20.0,
+    target_dir='output',
+    step=30,
+    prefix='frame_',
+    left_zeros=5
+)
+
+# Extract frames within a timespan and return in memory
+frames = media.extract_frames_timespan(
+    source_path=video_path,
+    start_time=10.0,
+    end_time=20.0,
+    step=30
+)
+
+# Extract frames within a position span and save to disk
+media.extract_frames_positionspan(
+    source_path=video_path,
+    start_frame=300,
+    end_frame=600,
+    target_dir='output',
+    step=30,
+    prefix='frame_',
+    left_zeros=5
+)
+
+# Extract frames within a position span and return in memory
+frames = media.extract_frames_positionspan(
+    source_path=video_path,
+    start_frame=300,
+    end_frame=600,
+    step=30
+)
+
+# Extract frames at a specified frame rate and save to disk
+media.extract_frames(
+    source_path=video_path,
+    target_dir='output',
+    step=30,
+    prefix='frame_',
+    left_zeros=5
+)
+
+# Extract frames at a specified frame rate and return in memory
+frames = media.extract_frames(
+    source_path=video_path,
+    step=30
+)
+```
 
 ## Additional tips
 
