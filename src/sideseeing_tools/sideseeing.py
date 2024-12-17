@@ -342,26 +342,32 @@ class SideSeeingInstance:
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
-    def extract_frames(self, output_dir, step=None, prefix='', left_zeros='5'):
+    def extract_frames(self, output_dir=None, step=None, prefix='', left_zeros='5'):
         '''
         Extract frames from the video.
 
         Args:
-            output_dir (str): The output directory where the frames will be saved.
+            output_dir (str): The output directory where the frames will be saved. If None, frames will be returned in memory.
             step (int): The rate at which frames are extracted.
             prefix (str): A prefix for the frame file names.
             left_zeros (str): The number of left zeros for the frame file names.
         
         Returns:
-            list: A list of the extracted frames file paths.
+            list: A list of the extracted frames file paths or frames in memory if output_dir is None.
         '''
-        return media.extract_frames(
-            self.video, 
-            output_dir,
-            step,
-            prefix,
-            left_zeros,
-        )
+        if output_dir:
+            return media.extract_frames(
+                self.video, 
+                output_dir,
+                step,
+                prefix,
+                left_zeros,
+            )
+        else:
+            return media.extract_frames_in_memory(
+                self.video,
+                step,
+            )
 
     def extract_frames_at_times(self, output_dir, times, prefix='', left_zeros='5'):
         '''
@@ -378,8 +384,8 @@ class SideSeeingInstance:
         '''
         return media.extract_frames_at_times(
             self.video,
-            output_dir,
             times,
+            output_dir,
             prefix,
             left_zeros,
         )
@@ -399,8 +405,8 @@ class SideSeeingInstance:
         '''
         return media.extract_frames_at_positions(
             self.video,
-            output_dir,
             positions,
+            output_dir,
             prefix,
             left_zeros,
         )
@@ -422,9 +428,9 @@ class SideSeeingInstance:
         '''
         return media.extract_frames_timespan(
             self.video,
-            output_dir,
             start_time,
             end_time,
+            output_dir,
             step,
             prefix,
             left_zeros,
@@ -447,9 +453,9 @@ class SideSeeingInstance:
         '''
         return media.extract_frames_positionspan(
             self.video,
-            output_dir,
             start_position,
             end_position,
+            output_dir,
             step,
             prefix,
             left_zeros,
