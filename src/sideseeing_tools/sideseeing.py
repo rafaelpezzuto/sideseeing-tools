@@ -342,7 +342,7 @@ class SideSeeingInstance:
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
-    def extract_frames(self, output_dir=None, step=None, prefix='', left_zeros='5'):
+    def extract_frames(self, output_dir=None, step=None, prefix='', left_zeros=5):
         '''
         Extract frames from the video.
 
@@ -355,21 +355,15 @@ class SideSeeingInstance:
         Returns:
             list: A list of the extracted frames file paths or frames in memory if output_dir is None.
         '''
-        if output_dir:
-            return media.extract_frames(
-                self.video, 
-                output_dir,
-                step,
-                prefix,
-                left_zeros,
-            )
-        else:
-            return media.extract_frames_in_memory(
-                self.video,
-                step,
-            )
+        return media.extract_frames(
+            self.video, 
+            output_dir,
+            step,
+            prefix,
+            left_zeros,
+        )
 
-    def extract_frames_at_times(self, times, output_dir=None, prefix='', left_zeros='5'):
+    def extract_frames_at_times(self, times, output_dir=None, prefix='', left_zeros=5):
         '''
         Extract frames at specific times from the video.
 
@@ -390,7 +384,7 @@ class SideSeeingInstance:
             left_zeros,
         )
     
-    def extract_frames_at_positions(self, positions, output_dir=None, prefix='', left_zeros='5'):
+    def extract_frames_at_positions(self, positions, output_dir=None, prefix='', left_zeros=5):
         '''
         Extract frames at specific positions from the video.
 
@@ -411,7 +405,7 @@ class SideSeeingInstance:
             left_zeros,
         )
     
-    def extract_frames_timespan(self, start_time, end_time, output_dir=None, step=None, prefix='', left_zeros='5'):
+    def extract_frames_timespan(self, start_time, end_time, output_dir=None, step=None, prefix='', left_zeros=5):
         '''
         Extract frames from a timespan of the video.
 
@@ -436,7 +430,7 @@ class SideSeeingInstance:
             left_zeros,
         )
 
-    def extract_frames_positionspan(self, start_position, end_position, output_dir=None, step=None, prefix='', left_zeros='5'):
+    def extract_frames_positionspan(self, start_position, end_position, output_dir=None, step=None, prefix='', left_zeros=5):
         '''
         Extract frames from a position span of the video.
 

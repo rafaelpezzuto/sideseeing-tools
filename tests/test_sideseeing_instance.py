@@ -202,3 +202,29 @@ class TestSideSeeingInstance(unittest.TestCase):
                     last,
                     '553551816870,2024-01-06T14:59:50.299Z,icm4x6xx gyroscope-uncalibrated non-wakeup,0.035553172,0.018508956,0.01890843,0.035553172,0.018508956,0.01890843,3'
                 )
+
+    def test_extract_frames_in_memory_is_ok(self):
+        frames = self.instance.extract_frames(step=30, prefix='frame_')
+        self.assertGreater(len(frames), 0)
+
+    def test_extract_frames_at_times_in_memory_is_ok(self):
+        frame_times = [1.0, 2.0, 3.0]
+        frames = self.instance.extract_frames_at_times(frame_times, prefix='frame_')
+        self.assertEqual(len(frames), len(frame_times))
+
+    def test_extract_frames_at_positions_in_memory_is_ok(self):
+        frame_positions = [30, 60, 90]
+        frames = self.instance.extract_frames_at_positions(frame_positions, prefix='frame_')
+        self.assertEqual(len(frames), len(frame_positions))
+
+    def test_extract_frames_timespan_in_memory_is_ok(self):
+        start_time = 1.0
+        end_time = 3.0
+        frames = self.instance.extract_frames_timespan(start_time, end_time, step=30, prefix='frame_')
+        self.assertGreater(len(frames), 0)
+
+    def test_extract_frames_positionspan_in_memory_is_ok(self):
+        start_frame = 30
+        end_frame = 90
+        frames = self.instance.extract_frames_positionspan(start_frame, end_frame, step=30, prefix='frame_')
+        self.assertGreater(len(frames), 0)
