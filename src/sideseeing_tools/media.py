@@ -117,9 +117,9 @@ def extract_frames_at_times(source_path, frame_times: list, target_dir=None, pre
 
             if ret:
                 frame_name = f'{prefix}{str(i).zfill(left_zeros)}.jpg'
-                frame_path = os.path.join(target_dir, frame_name)
-
+                
                 if target_dir:
+                    frame_path = os.path.join(target_dir, frame_name)
                     cv2.imwrite(frame_path, frame)
                     paths.append(frame_path)
                 else:
@@ -168,9 +168,9 @@ def extract_frames_at_positions(source_path, frame_positions: list, target_dir=N
 
             if ret:
                 frame_name = f'{prefix}{str(i).zfill(left_zeros)}.jpg'
-                frame_path = os.path.join(target_dir, frame_name)
-
+                
                 if target_dir:
+                    frame_path = os.path.join(target_dir, frame_name)
                     cv2.imwrite(frame_path, frame)
                     paths.append(frame_path)
                 else:
@@ -237,9 +237,9 @@ def extract_frames_timespan(source_path, start_time, end_time, target_dir=None, 
 
             if ret:
                 frame_name = f'{prefix}{str(i).zfill(left_zeros)}.jpg'
-                frame_path = os.path.join(target_dir, frame_name)
-
+                
                 if target_dir:
+                    frame_path = os.path.join(target_dir, frame_name)
                     cv2.imwrite(frame_path, frame)
                     paths.append(frame_path)
                 else:
@@ -311,9 +311,9 @@ def extract_frames_positionspan(source_path, start_frame, end_frame, target_dir=
 
             if ret:
                 frame_name = f'{prefix}{str(i).zfill(left_zeros)}.jpg'
-                frame_path = os.path.join(target_dir, frame_name)
-
+                
                 if target_dir:
+                    frame_path = os.path.join(target_dir, frame_name)
                     cv2.imwrite(frame_path, frame)
                     paths.append(frame_path)
                 else:
@@ -379,9 +379,9 @@ def extract_frames(source_path, target_dir=None, step=None, prefix='', left_zero
 
             if ret:
                 frame_name = f'{prefix}{str(i).zfill(left_zeros)}.jpg'
-                frame_path = os.path.join(target_dir, frame_name)
-
+                
                 if target_dir:
+                    frame_path = os.path.join(target_dir, frame_name)
                     cv2.imwrite(frame_path, frame)
                     paths.append(frame_path)
                 else:
