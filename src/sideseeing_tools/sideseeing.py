@@ -369,13 +369,13 @@ class SideSeeingInstance:
                 step,
             )
 
-    def extract_frames_at_times(self, output_dir, times, prefix='', left_zeros='5'):
+    def extract_frames_at_times(self, times, output_dir=None, prefix='', left_zeros='5'):
         '''
         Extract frames at specific times from the video.
 
         Args:
-            output_dir (str): The output directory where the frames will be saved.
             times (list): A list of times in seconds.
+            output_dir (str): The output directory where the frames will be saved.
             prefix (str): A prefix for the frame file names.
             left_zeros (str): The number of left zeros for the frame file names.
 
@@ -390,13 +390,13 @@ class SideSeeingInstance:
             left_zeros,
         )
     
-    def extract_frames_at_positions(self, output_dir, positions, prefix='', left_zeros='5'):
+    def extract_frames_at_positions(self, positions, output_dir=None, prefix='', left_zeros='5'):
         '''
         Extract frames at specific positions from the video.
 
         Args:
-            output_dir (str): The output directory where the frames will be saved.
             positions (list): A list of frame positions.
+            output_dir (str): The output directory where the frames will be saved.
             prefix (str): A prefix for the frame file names.
             left_zeros (str): The number of left zeros for the frame file names.
 
@@ -411,14 +411,14 @@ class SideSeeingInstance:
             left_zeros,
         )
     
-    def extract_frames_timespan(self, output_dir, start_time, end_time, step=None, prefix='', left_zeros='5'):
+    def extract_frames_timespan(self, start_time, end_time, output_dir=None, step=None, prefix='', left_zeros='5'):
         '''
         Extract frames from a timespan of the video.
 
         Args:
-            output_dir (str): The output directory where the frames will be saved.
             start_time (int): The start time in seconds.
             end_time (int): The end time in seconds.
+            output_dir (str): The output directory where the frames will be saved.
             step (int): The rate at which frames are extracted.
             prefix (str): A prefix for the frame file names.
             left_zeros (str): The number of left zeros for the frame file names.
@@ -436,14 +436,14 @@ class SideSeeingInstance:
             left_zeros,
         )
 
-    def extract_frames_positionspan(self, output_dir, start_position, end_position, step=None, prefix='', left_zeros='5'):
+    def extract_frames_positionspan(self, start_position, end_position, output_dir=None, step=None, prefix='', left_zeros='5'):
         '''
         Extract frames from a position span of the video.
 
         Args:
-            output_dir (str): The output directory where the frames will be saved.
             start_position (int): The start position in frames.
             end_position (int): The end position in frames.
+            output_dir (str): The output directory where the frames will be saved.
             step (int): The rate at which frames are extracted.
             prefix: (str): A prefix for the frame file names.
             left_zeros (str): The number of left zeros for the frame file names.
