@@ -1,6 +1,21 @@
 # SideSeeing Tools
 
-SideSeeing Tools is a collection of scripts designed to load, preprocess, and analyze data gathered through the MultiSensor Data Collection App.
+![Version](https://img.shields.io/badge/version-0.7.0-orange)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
+
+SideSeeing Tools is a suite of scripts designed to load, preprocess, and analyze data collected using the MultiSensor Data Collection App. These tools facilitate the extraction and visualization of sensor data, making them valuable for urban informatics research and applications. This project is licensed under the MIT License, allowing for open-source distribution and modification. For more details, please refer to the [LICENSE](LICENSE) file.
+
+SideSeeing Tools is compatible with Python version 3.9 and above. The tools are designed to work across multiple platforms, including Linux, macOS, and Windows. Here are some of the key features of SideSeeing Tools:
+
+- **Data Loading**: Easily load data collected using the MultiSensor Data Collection App.
+- **Preprocessing**: Preprocess the data to make it ready for analysis.
+- **Analysis**: Perform various analyses on the data, including extracting and visualizing sensor data.
+- **Visualization**: Generate visual representations of the data, such as plots and maps.
+- **Frame Extraction**: Extract frames from video files at specified times or positions.
+- **Snippet Extraction**: Extract snippets from video and sensor data for focused analysis.
+
 
 ## Installation
 
@@ -399,20 +414,25 @@ The following data outlines the specifications of sensor content before SideSeei
 
 ## List of `SideSeeingInstance` attributes/methods
 
-| Attribute or method | Description |
-| ------------------- | ----------- |
-| `geolocation_points`  | Dictionary containing geolocation data, including latitude and longitude coordinates representing geographical points. |
-| `geolocation_center`  | Latitude and longitude coordinates representing the geographic center of a specific area. |
-| `audio`               | Path to the audio file associated with the collected data. |
-| `gif`                 | Path to the GIF file associated with the collected data. |
-| `video`               | Path to the video file associated with the collected data. |
-| `sensors1`            | Dictionary containing data from one-axis sensors. |
-| `sensors3`            | Dictionary containing data from three-axis sensors. |
-| `sensors6`            | Dictionary containing data from six-axis sensors, including uncalibrated data. |
-| `label`               | List of categories and tags representing the taxonomy of sidewalks. |
-| `video_start_time`    | Start time of the video associated with the collected data. |
-| `video_stop_time`     | Stop time of the video associated with the collected data. |
-| `extract_snippet`     | Extracting a snippet from the sample (video, sensor, gps and consumption data). |
+| Attribute or method           | Description |
+| ----------------------------- | ----------- |
+| `geolocation_points`          | Dictionary containing geolocation data, including latitude and longitude coordinates representing geographical points. |
+| `geolocation_center`          | Latitude and longitude coordinates representing the geographic center of a specific area. |
+| `audio`                       | Path to the audio file associated with the collected data. |
+| `gif`                         | Path to the GIF file associated with the collected data. |
+| `video`                       | Path to the video file associated with the collected data. |
+| `sensors1`                    | Dictionary containing data from one-axis sensors. |
+| `sensors3`                    | Dictionary containing data from three-axis sensors. |
+| `sensors6`                    | Dictionary containing data from six-axis sensors, including uncalibrated data. |
+| `label`                       | List of categories and tags representing the taxonomy of sidewalks. |
+| `video_start_time`            | Start time of the video associated with the collected data. |
+| `video_stop_time`             | Stop time of the video associated with the collected data. |
+| `extract_snippet`             | Extracting a snippet from the sample (video, sensor, gps and consumption data). |
+| `extract_frames_at_times`     | Extract frames from a video file at specified time points and save them as image files. |
+| `extract_frames_at_positions` | Extract frames from a video file at specified frame positions and save them as image files. |
+| `extract_frames_timespan`     | Extract frames from a video file within a specified time span and save them as image files. |
+| `extract_frames_positionspan` | Extract frames from a video file within a specified position span and save them as image files. |
+| `extract_frames`              | Extract frames from a video file at a specified frame rate and save them as image files. |
 
 
 ## Author
