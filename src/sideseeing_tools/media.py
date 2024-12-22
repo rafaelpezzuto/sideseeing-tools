@@ -3,7 +3,8 @@ import os
 import imageio
 import cv2
 
-from moviepy.editor import VideoFileClip
+
+from moviepy import VideoFileClip
 
 
 def extract_audio(source_path: str, target_path: str, sample_rate=44100, channels=2, codec='pcm_s16le', overwrite=False):
@@ -74,8 +75,10 @@ def extract_gif(source_path: str, target_path: str, target_width=300, target_fps
 
 def extract_video_snippet(source_path, start_second, end_second, output_path):
     try:
-        clip = VideoFileClip(source_path)
-        snippet = clip.subclip(start_second, end_second)
+        snippet = (
+            VideoFileClip(source_path)
+            .subclipped(start_second, end_second)
+        )
         snippet.write_videofile(output_path)
 
     except FileNotFoundError:
@@ -85,8 +88,8 @@ def extract_video_snippet(source_path, start_second, end_second, output_path):
         print(f'Error occurred: {str(e)}')
 
     finally:
-        if 'clip' in locals():
-            clip.close()
+        if 'snippet' in locals():
+            snippet.close()
 
 
 def extract_frames_at_times(source_path, frame_times: list, target_dir=None, prefix='', left_zeros=5):
