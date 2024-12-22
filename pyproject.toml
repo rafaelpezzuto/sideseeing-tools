@@ -1,19 +1,19 @@
 [project]
 name = "sideseeing-tools"
-version = "0.6.5"
+version = "0.7.0"
 authors = [
   {name="Rafael J. P. Damaceno", email="rafael.damaceno@ime.usp.br"},
 ]
 description = "A set of tools to load, preprocess and analyze data collected through the MultiSensor Data Collection App"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
   "decorator",
   "folium",
   "imageio",
   "librosa",
   "matplotlib",
-  "moviepy",
+  "moviepy>=2.0.0",
   "numpy",
   "opencv-python",
   "pandas",
