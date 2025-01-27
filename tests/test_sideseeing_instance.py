@@ -1,9 +1,10 @@
+import json
 import tempfile
 import unittest
 
 from pathlib import Path
 
-from sideseeing_tools.constants import CONSUMPTION_SNIPPET_FILE_NAME, GPS_SNIPPET_FILE_NAME, ONE_AXIS_SNIPPET_FILE_NAME, THREE_AXES_SNIPPET_FILE_NAME, THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME
+from sideseeing_tools.constants import CONSUMPTION_SNIPPET_FILE_NAME, GPS_FILE_NAME, GPS_SNIPPET_FILE_NAME, ONE_AXIS_SNIPPET_FILE_NAME, ONE_AXIS_FILE_NAME, THREE_AXES_SNIPPET_FILE_NAME, THREE_AXES_FILE_NAME, THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME, THREE_AXES_UNCALIBRATED_FILE_NAME
 from sideseeing_tools.sideseeing import SideSeeingDS
 
 
@@ -12,6 +13,40 @@ class TestSideSeeingInstance(unittest.TestCase):
         self.dataset = SideSeeingDS('fixtures/dataset', name="Test Dataset")
         self.instance = self.dataset.instances['instance-001']
 
+    def test_extract_snippet_with_include_time_span_on_filename(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            start_time = 0
+            end_time = 2
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), include_time_span_on_filename=True)
+
+            gps_tmp_file = (output_dir / f"{GPS_SNIPPET_FILE_NAME.format(start_time, end_time)}")
+            self.assertTrue(gps_tmp_file.exists())
+
+            sensors1_tmp_file = (output_dir / f"{ONE_AXIS_SNIPPET_FILE_NAME.format(start_time, end_time)}")
+            self.assertTrue(sensors1_tmp_file.exists())
+
+            sensors3_tmp_file = (output_dir / f"{THREE_AXES_SNIPPET_FILE_NAME.format(start_time, end_time)}")
+            self.assertTrue(sensors3_tmp_file.exists())
+
+            sensors6_tmp_file = (output_dir / f"{THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME.format(start_time, end_time)}")
+            self.assertTrue(sensors6_tmp_file.exists())
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), include_time_span_on_filename=False)
+
+            gps_tmp_file_without_span = (output_dir / f"{GPS_FILE_NAME}")
+            self.assertTrue(gps_tmp_file_without_span.exists())
+
+            sensors1_tmp_file_without_span = (output_dir / f"{ONE_AXIS_FILE_NAME}")
+            self.assertTrue(sensors1_tmp_file_without_span.exists())
+
+            sensors3_tmp_file_without_span = (output_dir / f"{THREE_AXES_FILE_NAME}")
+            self.assertTrue(sensors3_tmp_file_without_span.exists())
+
+            sensors6_tmp_file_without_span = (output_dir / f"{THREE_AXES_UNCALIBRATED_FILE_NAME}")
+            self.assertTrue(sensors6_tmp_file_without_span.exists())
 
     def test_extract_snippet_metadata_is_ok(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -44,7 +79,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             gps_tmp_file = (output_dir / f"{GPS_SNIPPET_FILE_NAME.format(start_time, end_time)}")
             self.assertTrue(gps_tmp_file.exists())
@@ -75,7 +110,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 57
             end_time = -1
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             gps_tmp_file = (output_dir / f"{GPS_SNIPPET_FILE_NAME.format(start_time, '-1')}")
             self.assertTrue(gps_tmp_file.exists())
@@ -100,7 +135,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             consumption_tmp_file = (output_dir / f"{CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, end_time)}")
             self.assertTrue(consumption_tmp_file.exists())
@@ -137,7 +172,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = -1
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             consumption_tmp_file = (output_dir / f"{CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, '-1')}")
             self.assertTrue(consumption_tmp_file.exists())
@@ -162,7 +197,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
             
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             video_tmp_file = (output_dir / f"video.{start_time}_{end_time}.mp4")
             self.assertTrue(video_tmp_file.exists())
@@ -174,7 +209,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             sensors1_tmp_file = (output_dir / f"{ONE_AXIS_SNIPPET_FILE_NAME.format(start_time, end_time)}")
             self.assertTrue(sensors1_tmp_file.exists())
@@ -211,7 +246,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             sensors3_tmp_file = (output_dir / f"{THREE_AXES_SNIPPET_FILE_NAME.format(start_time, end_time)}")
             self.assertTrue(sensors3_tmp_file.exists())
@@ -248,7 +283,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = -1
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             sensors3_tmp_file = (output_dir / f"{THREE_AXES_SNIPPET_FILE_NAME.format(start_time, '-1')}")
             self.assertTrue(sensors3_tmp_file.exists())
@@ -273,7 +308,7 @@ class TestSideSeeingInstance(unittest.TestCase):
             start_time = 0
             end_time = 2
 
-            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
 
             sensors6_tmp_file = (output_dir / f"{THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME.format(start_time, end_time)}")
             self.assertTrue(sensors6_tmp_file.exists())

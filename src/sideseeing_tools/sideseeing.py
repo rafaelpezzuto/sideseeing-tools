@@ -255,7 +255,7 @@ class SideSeeingInstance:
                     self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
                     self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
 
-    def extract_snippet(self, start_time, end_time, output_dir):
+    def extract_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename=False):
         '''
         Extract a snippet from the instance.
 
@@ -270,17 +270,22 @@ class SideSeeingInstance:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
 
-        self._write_gps_snippet(start_time, end_time, output_dir)
+        self._write_gps_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
 
-        self._write_consumption_snippet(start_time, end_time, output_dir)
+        self._write_consumption_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
             
-        self._write_sensors_snippet(start_time, end_time, output_dir)
+        self._write_sensors_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+
+        if include_time_span_on_filename:
+            video_output_path = os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            video_output_path = os.path.join(output_dir, constants.VIDEO_FILE_NAME)
 
         media.extract_video_snippet(
             self.video, 
             start_time, 
             end_time, 
-            os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time)),
+            video_output_path,
         )
 
         self._write_metadata_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
@@ -300,14 +305,20 @@ class SideSeeingInstance:
 
         with open(metadata_output_path, 'w') as fout:
             json.dump(snippet_metadata, fout, indent=4)
+
+    def _write_sensors_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
         sensor_configs = [
-            ('sensors1', constants.ONE_AXIS_SNIPPET_FILE_NAME, constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
-            ('sensors3', constants.THREE_AXES_SNIPPET_FILE_NAME, constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
-            ('sensors6', constants.THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME, constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
+            ('sensors1', constants.ONE_AXIS_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.ONE_AXIS_FILE_NAME, constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
+            ('sensors3', constants.THREE_AXES_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.THREE_AXES_FILE_NAME, constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
+            ('sensors6', constants.THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.THREE_AXES_UNCALIBRATED_FILE_NAME, constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
         ]
 
         for naxes, file_name, fields in sensor_configs:
-            output_file = os.path.join(output_dir, file_name.format(start_time, end_time))
+            if include_time_span_on_filename:
+                output_file = os.path.join(output_dir, file_name.format(start_time, end_time))
+            else:
+                output_file = os.path.join(output_dir, file_name)
+
             sensors = getattr(self, naxes, {})
 
             with open(output_file, 'w') as fout:
@@ -331,8 +342,12 @@ class SideSeeingInstance:
         
                         fout.write(','.join(map(str, formatted_row)) + '\n')
 
-    def _write_consumption_snippet(self, start_time, end_time, output_dir):
-        consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, end_time))
+    def _write_consumption_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
+        if include_time_span_on_filename:
+            consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_FILE_NAME)
+
         consumption_snippet_data = utils.extract_dataframe_snippet(self.consumption, start_time, end_time)
         with open(consumption_snippet_output_file, 'w') as fout:
             fout.write(','.join(constants.CONSUMPTION_FILE_FIELDNAMES) + '\n')
@@ -343,8 +358,12 @@ class SideSeeingInstance:
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
-    def _write_gps_snippet(self, start_time, end_time, output_dir):
-        gps_snippet_output_file = os.path.join(output_dir, constants.GPS_SNIPPET_FILE_NAME.format(start_time, end_time))
+    def _write_gps_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
+        if include_time_span_on_filename:
+            gps_snippet_output_file = os.path.join(output_dir, constants.GPS_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            gps_snippet_output_file = os.path.join(output_dir, constants.GPS_FILE_NAME)
+
         gps_snippet_data = utils.extract_dataframe_snippet(self.geolocation_points, start_time, end_time)
         with open(gps_snippet_output_file, 'w') as fout:
             fout.write(','.join(constants.GPS_FILE_FIELDNAMES) + '\n')
