@@ -43,6 +43,31 @@ class TestSideSeeingInstance(unittest.TestCase):
                     '2024-01-06T15:00:05.104Z,15.0,21.932,-23.5395938,-46.7073943'
                 )
 
+    def test_extract_snippet_gps_with_end_time_minus_one_is_ok(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            start_time = 57
+            end_time = -1
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+
+            gps_tmp_file = (output_dir / f"{GPS_SNIPPET_FILE_NAME.format(start_time, '-1')}")
+            self.assertTrue(gps_tmp_file.exists())
+
+            with open(gps_tmp_file, 'r') as f:
+                self.assertEqual(
+                    f.readline(), 
+                    'datetime_utc,gps_interval,accuracy,latitude,longitude\n',
+                )
+
+                lines = sorted([l.strip() for l in f.readlines()])
+
+                self.assertEqual(
+                    len(lines), 
+                    1,
+                )
+
     def test_extract_snippet_consumption_is_ok(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)
@@ -78,6 +103,31 @@ class TestSideSeeingInstance(unittest.TestCase):
                 self.assertEqual(
                     last,
                     '2024-01-06T14:59:51.135Z,-995000.0'
+                )
+
+    def test_extract_snippet_consumption_with_end_time_minus_one_is_ok(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            start_time = 0
+            end_time = -1
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+
+            consumption_tmp_file = (output_dir / f"{CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, '-1')}")
+            self.assertTrue(consumption_tmp_file.exists())
+
+            with open(consumption_tmp_file, 'r') as f:
+                self.assertEqual(
+                    f.readline(), 
+                    'datetime_utc,battery_microamperes\n',
+                )
+
+                lines = sorted([l.strip() for l in f.readlines()])
+
+                self.assertEqual(
+                    len(lines), 
+                    84,
                 )
 
     def test_extract_snippet_video_is_ok(self):
@@ -164,6 +214,31 @@ class TestSideSeeingInstance(unittest.TestCase):
                 self.assertEqual(
                     last,
                     '553577475724,2024-01-06T14:59:50.326Z,gravity  wakeup,8.93816,-0.47404757,4.0068645,3'
+                )
+
+    def test_extract_snippet_sensors3_with_end_time_minus_one_is_ok(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            start_time = 0
+            end_time = -1
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir))
+
+            sensors3_tmp_file = (output_dir / f"{THREE_AXES_SNIPPET_FILE_NAME.format(start_time, '-1')}")
+            self.assertTrue(sensors3_tmp_file.exists())
+
+            with open(sensors3_tmp_file, 'r') as f:
+                self.assertEqual(
+                    f.readline(), 
+                    'timestamp_nano,datetime_utc,name,axis_x,axis_y,axis_z,accuracy\n',
+                )
+
+                lines = sorted([l.strip() for l in f.readlines()])
+
+                self.assertEqual(
+                    len(lines), 
+                    15819,
                 )
 
     def test_extract_snippet_sensors6_is_ok(self):
