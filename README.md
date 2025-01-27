@@ -1,6 +1,6 @@
 # SideSeeing Tools
 
-![Version](https://img.shields.io/badge/version-0.7.0-orange)
+![Version](https://img.shields.io/badge/version-0.7.1-orange)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
@@ -244,7 +244,27 @@ This method extracts frames from a video file at a specified frame rate and save
 **Returns:**
 - `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
 
-### Example Usage
+### Example Usage of Frame Extraction Methods through the `SideSeeingInstance`:
+
+```python
+from sideseeing_tools.sideseeing import SideSeeingDS
+
+# Initialize the SideSeeingDS object
+ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
+
+# Get a random instance from the dataset
+inst = ds.instance
+
+# Extract frames at specific times and save to disk
+inst.extract_frames_at_times(
+    frame_times=[1.0, 2.0, 3.0],
+    target_dir='output',
+    prefix='frame_',
+    left_zeros=5
+)
+```
+
+### Example Usage of Frame Extraction Methods through the `media` module:
 
 ```python
 from sideseeing_tools import media
