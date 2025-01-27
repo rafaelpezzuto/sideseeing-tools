@@ -277,7 +277,7 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
         print('WARNING. The specified start time is before the data range.')
         start_time = data['Time (s)'].min()
 
-    if end_time > data['Time (s)'].max():
+    if end_time > data['Time (s)'].max() or end_time < 0:
         print('WARNING. The specified end time is after the data range.')
         end_time = data['Time (s)'].max()
     
