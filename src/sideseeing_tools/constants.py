@@ -73,6 +73,10 @@ VIDEO_FILE_NAME = 'video.mp4'
 
 VIDEO_SNIPPET_FILE_NAME = 'video.{}_{}.mp4'
 
+METADATA_FILE_NAME = 'metadata.json'
+
+METADATA_SNIPPET_FILE_NAME = 'metadata.{}_{}.json'
+
 SUPPORTED_FILES = [
   CONSUMPTION_FILE_NAME,
   GPS_FILE_NAME,

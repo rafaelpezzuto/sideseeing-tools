@@ -12,6 +12,31 @@ class TestSideSeeingInstance(unittest.TestCase):
         self.dataset = SideSeeingDS('fixtures/dataset', name="Test Dataset")
         self.instance = self.dataset.instances['instance-001']
 
+
+    def test_extract_snippet_metadata_is_ok(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            start_time = 0
+            end_time = 2
+
+            self.instance.extract_snippet(start_time, end_time, str(output_dir), True)
+
+            metadata_tmp_file = (output_dir / f"metadata.{start_time}_{end_time}.json")
+            self.assertTrue(metadata_tmp_file.exists())
+
+            with open(metadata_tmp_file, 'r') as f:
+                metadata = json.load(f)
+
+                snippet = metadata['snippet']
+
+                self.assertIn('start_time', snippet)
+                self.assertIn('end_time', snippet)
+                self.assertIn('total_time', snippet)
+                self.assertEqual(snippet['start_time'], start_time)
+                self.assertEqual(snippet['end_time'], end_time)
+                self.assertEqual(snippet['total_time'], end_time - start_time)
+
     def test_extract_snippet_gps_is_ok(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)

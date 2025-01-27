@@ -283,7 +283,23 @@ class SideSeeingInstance:
             os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time)),
         )
 
-    def _write_sensors_snippet(self, start_time, end_time, output_dir):
+        self._write_metadata_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+
+    def _write_metadata_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
+        if include_time_span_on_filename:
+            metadata_output_path = os.path.join(output_dir, constants.METADATA_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            metadata_output_path = os.path.join(output_dir, constants.METADATA_FILE_NAME)
+
+        snippet_metadata = self.metadata.copy()
+        snippet_metadata['snippet'] = {
+            'start_time': start_time,
+            'end_time': end_time,
+            'total_time': end_time - start_time,
+        }
+
+        with open(metadata_output_path, 'w') as fout:
+            json.dump(snippet_metadata, fout, indent=4)
         sensor_configs = [
             ('sensors1', constants.ONE_AXIS_SNIPPET_FILE_NAME, constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
             ('sensors3', constants.THREE_AXES_SNIPPET_FILE_NAME, constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
