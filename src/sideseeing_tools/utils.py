@@ -273,9 +273,13 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
             print(f"ERROR. Column '{col}' is not present in the DataFrame.")
             return None
     
-    if not ((start_time >= data['Time (s)'].min()) and (end_time <= data['Time (s)'].max())):
-        print('ERROR. The specified time range is outside the data range.')
-        return None
+    if start_time < data['Time (s)'].min():
+        print('WARNING. The specified start time is before the data range.')
+        start_time = data['Time (s)'].min()
+
+    if end_time > data['Time (s)'].max():
+        print('WARNING. The specified end time is after the data range.')
+        end_time = data['Time (s)'].max()
     
     snippet = data[(data['Time (s)'] >= start_time) & (data['Time (s)'] <= end_time)]
     
