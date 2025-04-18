@@ -1,5 +1,6 @@
 import csv
 import datetime
+import re
 import requests
 
 import cv2
@@ -39,6 +40,18 @@ def save_csv_data_with_pandas(data: pd.DataFrame, path: str, index=False):
     data.to_csv(path, index=index)
 
 
+def extract_media_start_time(metadata: dict):
+    video_start_time = metadata.get('time', {}).get('videoStartDateTime')
+    media_start_time = metadata.get('time', {}).get('mediaStartDateTime')
+    return video_start_time or media_start_time
+
+
+def extract_media_stop_time(metadata: dict):
+    video_stop_time = metadata.get('time', {}).get('videoStopDateTime')
+    media_stop_time = metadata.get('time', {}).get('mediaStopDateTime')
+    return video_stop_time or media_stop_time
+
+
 def generate_metadata(iterator, datetime_format: str):
     items = []
 
@@ -59,12 +72,17 @@ def generate_metadata(iterator, datetime_format: str):
         else:
            item['geolocation_center'] = ''
 
-        item['video_start_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStartDateTime', ''), datetime_format)
-        item['video_end_time'] = datetime.datetime.strptime(i.metadata.get('time', {}).get('videoStopDateTime', ''), datetime_format)
-        item['video_duration'] = round(v_frames / v_fps, 2)
+        media_start_time = extract_media_start_time(i.metadata)
+        media_stop_time = extract_media_stop_time(i.metadata)
+
+        item['media_start_time'] = datetime.datetime.strptime(media_start_time, datetime_format)
+        item['media_stop_time'] = datetime.datetime.strptime(media_stop_time, datetime_format)
+        item['media_total_time'] = (item['media_stop_time'] - item['media_start_time']).total_seconds()
+
         item['video_frames'] = v_frames
         item['video_fps'] = v_fps
         item['video_resolution'] = f'{v_width}x{v_height}'
+
         item['manufacturer'] = i.metadata.get('device', {}).get('manufacturer', '')
         item['model'] = i.metadata.get('device', {}).get('model', '')
         item['so_version'] = i.metadata.get('device', {}).get('androidVersion', '')
@@ -145,7 +163,12 @@ def preprocess_consumption(data: dict, datetime_format: str, start_time=None, en
         
         rows.append([ts, float(row['battery_microamperes'])])
     
-    return to_dataframe(sorted(rows, key=lambda x: x[0]), 1, datetime_format, data_type='consumption')
+    sorted_rows = sorted(rows, key=lambda x: x[0])
+
+    if not sorted_rows:
+        return pd.DataFrame()
+
+    return to_dataframe(sorted_rows, 1, datetime_format, data_type='consumption')
 
 
 def preprocess_gps(data: dict, datetime_format: str, start_time=None, end_time=None):
@@ -165,7 +188,96 @@ def preprocess_gps(data: dict, datetime_format: str, start_time=None, end_time=N
 
         rows.append([ts] + [float(c) for c in [row['gps_interval'], row['accuracy'], row['latitude'], row['longitude']]])
 
+    sorted_rows = sorted(rows, key=lambda x: x[0])
+
+    if not sorted_rows:
+        return pd.DataFrame()
+
     return to_dataframe(rows, 1, datetime_format, data_type='gps')
+
+
+def process_cell_networks(path, datetime_format: str, start_time=None, end_time=None):
+    data = []
+
+    with open(path) as fin:
+        next(fin)
+
+        for line in fin:
+            try:
+                datetime_str, rest = line.strip().split(",", 1)
+                ts = datetime.datetime.strptime(datetime_str, datetime_format)
+
+                if start_time and ts < start_time:
+                    continue
+                if end_time and ts > end_time:
+                    continue
+
+                reg_match = re.search(r'mRegistered=(\w+)', rest)
+                ci_match = re.search(r'mCi=(\d+)', rest)
+                pci_match = re.search(r'mPci=(\d+)', rest)
+                earfcn_match = re.search(r'mEarfcn=(\d+)', rest)
+                rssi_match = re.search(r'rssi=(-?\d+)', rest)
+                rsrp_match = re.search(r'rsrp=(-?\d+)', rest)
+                rsrq_match = re.search(r'rsrq=(-?\d+)', rest)
+                level_match = re.search(r'level=(\d+)', rest)
+
+                row = {
+                    'Datetime UTC': datetime_str,
+                    'registered': reg_match.group(1) if reg_match else None,
+                    'ci': ci_match.group(1) if ci_match else None,
+                    'pci': pci_match.group(1) if pci_match else None,
+                    'earfcn': earfcn_match.group(1) if earfcn_match else None,
+                    'rssi': rssi_match.group(1) if rssi_match else None,
+                    'rsrp': rsrp_match.group(1) if rsrp_match else None,
+                    'rsrq': rsrq_match.group(1) if rsrq_match else None,
+                    'level': level_match.group(1) if level_match else None
+                }
+
+                data.append(row)
+            except Exception as e:
+                print(f"Error processing line: {line.strip()}: {e}")
+                continue
+
+    return to_dataframe(data, 1, datetime_format, data_type='cell', create_time_column=True)
+
+
+def process_wifi_networks(path, datetime_format: str, start_time=None, end_time=None):
+    data = []
+
+    with open(path) as fin:
+        next(fin)
+
+        for line in fin:
+            try:
+                datetime_str, rest = line.strip().split(",", 1)
+                ts = datetime.datetime.strptime(datetime_str, datetime_format)
+
+                if start_time and ts < start_time:
+                    continue
+                if end_time and ts > end_time:
+                    continue
+
+                ssid_match = re.search(r'SSID: "(.*?)"', rest)
+                bssid_match = re.search(r'BSSID: ([0-9a-f:]{17})', rest)
+                level_match = re.search(r'level: (-?\d+)', rest)
+                freq_match = re.search(r'frequency: (\d+)', rest)
+                standard_match = re.search(r'standard: (\w+)', rest)
+
+                row = {
+                    'Datetime UTC': datetime_str,
+                    'SSID': ssid_match.group(1) if ssid_match else None,
+                    'BSSID': bssid_match.group(1) if bssid_match else None,
+                    'level': level_match.group(1) if level_match else None,
+                    'frequency': freq_match.group(1) if freq_match else None,
+                    'standard': standard_match.group(1) if standard_match else None
+                }
+
+                data.append(row)
+            except Exception as e:
+                print(f"Error processing line: {line.strip()}: {e}")
+                continue
+
+    return to_dataframe(data, 1, datetime_format, data_type='wifi', create_time_column=True)
 
 
 def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', create_time_column=True):
@@ -192,6 +304,12 @@ def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', 
 
     elif data_type == 'gps':
         columns.extend(['gps_interval', 'accuracy', 'latitude', 'longitude',])
+
+    elif data_type == 'wifi':
+        columns.extend(['SSID', 'BSSID', 'level', 'frequency', 'standard'])
+
+    elif data_type == 'cell':
+        columns.extend(['registered', 'ci', 'pci', 'earfcn', 'rssi', 'rsrp', 'rsrq', 'level'])
 
     df = pd.DataFrame(data, columns=columns)
 

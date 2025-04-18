@@ -18,6 +18,16 @@ LABELS_FILE_FIELDNAMES = [
   'tag',
 ]
 
+WIFI_FILE_FIELDNAMES = [
+  'datetime_utc',
+  'wifi_network',
+]
+
+CELL_FILE_FIELDNAMES = [
+  'datetime_utc',
+  'cellular_network',
+] 
+
 ONE_AXIS_SENSORS_FILE_FIELDNAMES = [
   'timestamp_nano',
   'datetime_utc',
@@ -69,6 +79,14 @@ CONSUMPTION_FILE_NAME = 'consumption.csv'
 
 CONSUMPTION_SNIPPET_FILE_NAME = 'consumption.{}_{}.csv'
 
+CELL_FILE_NAME = 'cell.csv'
+
+CELL_SNIPPET_FILE_NAME = 'cell.{}_{}.csv'
+
+WIFI_FILE_NAME = 'wifi.csv'
+
+WIFI_SNIPPET_FILE_NAME = 'wifi.{}_{}.csv'
+
 VIDEO_FILE_NAME = 'video.mp4'
 
 VIDEO_SNIPPET_FILE_NAME = 'video.{}_{}.mp4'
@@ -80,6 +98,8 @@ METADATA_SNIPPET_FILE_NAME = 'metadata.{}_{}.json'
 SUPPORTED_FILES = [
   CONSUMPTION_FILE_NAME,
   GPS_FILE_NAME,
+  CELL_FILE_NAME,
+  WIFI_FILE_NAME,
   ONE_AXIS_FILE_NAME,
   THREE_AXES_FILE_NAME,
   THREE_AXES_UNCALIBRATED_FILE_NAME,

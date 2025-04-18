@@ -140,6 +140,10 @@ class SideSeeingFile:
             return 'sensors6'
         elif re.search(r'sensors\.one(\.\d+_\d+)?\.csv$', self.file_name):
             return 'sensors1'
+        elif re.search(r'cell(\.\d+_\d+)?\.csv$', self.file_name):
+            return 'cell'
+        elif re.search(r'wifi(\.\d+_\d+)?\.csv$', self.file_name):
+            return 'wifi'
         elif self.file_name.endswith('.mp4'):
             return 'video'
         elif self.file_name.endswith('video.wav'):
@@ -179,8 +183,9 @@ class SideSeeingInstance:
             f"Manufacturer: {self.metadata.get('device', {}).get('manufacturer', '').title()}",
             f"Model: {self.metadata.get('device', {}).get('model', '')}",
             f"Android version: {self.metadata.get('device', {}).get('androidVersion', '')}",
-            f"Start video time: {self.metadata.get('time', {}).get('videoStartDateTime', '')}",
-            f"Stop video time: {self.metadata.get('time', {}).get('videoStopDateTime', '')}",
+            f"Media start time: {self.media_start_time}",
+            f"Media stop time: {self.media_stop_time}",
+            f"Media total time: {self.media_total_time}",
             sep='\n'
         )
 
@@ -194,25 +199,36 @@ class SideSeeingInstance:
         if self.metadata is None:
             raise exceptions.InvalidMetadataFileError(f'ERROR. Metadata file is is invalid for {self.name}')
 
-        self.video_start_time = datetime.datetime.strptime(self.metadata['time']['videoStartDateTime'], constants.DATETIME_UTC_FORMAT)
-        self.video_stop_time = datetime.datetime.strptime(self.metadata['time']['videoStopDateTime'], constants.DATETIME_UTC_FORMAT)
-        self.video_total_time = (self.video_stop_time - self.video_stop_time).total_seconds()
+        media_start_time = utils.extract_media_start_time(self.metadata)
+        media_stop_time = utils.extract_media_stop_time(self.metadata)
+
+        self.media_start_time = datetime.datetime.strptime(media_start_time, constants.DATETIME_UTC_FORMAT)
+        self.media_stop_time = datetime.datetime.strptime(media_stop_time, constants.DATETIME_UTC_FORMAT)
+        self.media_total_time = (self.media_stop_time - self.media_start_time).total_seconds()
+
+        attributes = [
+            'consumption', 'geolocation_points', 'geolocation_center', 
+            'sensors3', 'sensors6', 'sensors1', 'cell_networks', 
+            'wifi_networks', 'label', 'video', 'audio', 'gif'
+        ]
+        for attr in attributes:
+            setattr(self, attr, None)
 
         for k, v in self.files.items():
             if k == 'consumption':
                 self.consumption = utils.preprocess_consumption(
                     utils.load_csv_data(v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES),
                     constants.DATETIME_UTC_FORMAT,
-                    self.video_start_time,
-                    self.video_stop_time,
+                    self.media_start_time,
+                    self.media_stop_time,
                 )
 
             if k == 'gps':
                 self.geolocation_points = utils.preprocess_gps(
                     utils.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES),
                     constants.DATETIME_UTC_FORMAT,
-                    self.video_start_time,
-                    self.video_stop_time,
+                    self.media_start_time,
+                    self.media_stop_time,
                 )
                 if not self.geolocation_points.empty:
                     self.geolocation_center = self.geolocation_points[['latitude', 'longitude']].mean().tolist()
@@ -224,8 +240,8 @@ class SideSeeingInstance:
                     utils.load_csv_data(v.file_path, fieldnames=constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
                     3,
                     constants.DATETIME_UTC_FORMAT,
-                    self.video_start_time,
-                    self.video_stop_time
+                    self.media_start_time,
+                    self.media_stop_time
                 )
 
             if k == 'sensors6':
@@ -233,8 +249,8 @@ class SideSeeingInstance:
                     utils.load_csv_data(v.file_path, fieldnames=constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
                     6,
                     constants.DATETIME_UTC_FORMAT,
-                    self.video_start_time,
-                    self.video_stop_time
+                    self.media_start_time,
+                    self.media_stop_time
                 )
 
             if k == 'sensors1':
@@ -242,8 +258,24 @@ class SideSeeingInstance:
                     utils.load_csv_data(v.file_path, fieldnames=constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
                     1,
                     constants.DATETIME_UTC_FORMAT,
-                    self.video_start_time,
-                    self.video_stop_time
+                    self.media_start_time,
+                    self.media_stop_time
+                )
+
+            if k == 'wifi':
+                self.wifi_networks = utils.process_wifi_networks(
+                    v.file_path,
+                    datetime_format=constants.DATETIME_UTC_FORMAT,
+                    start_time=self.media_start_time,
+                    end_time=self.media_stop_time
+                )
+
+            if k == 'cell':
+                self.cell_networks = utils.process_cell_networks(
+                    v.file_path,
+                    datetime_format=constants.DATETIME_UTC_FORMAT,
+                    start_time=self.media_start_time,
+                    end_time=self.media_stop_time
                 )
 
             if k == 'label':
@@ -275,6 +307,10 @@ class SideSeeingInstance:
         self._write_consumption_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
             
         self._write_sensors_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+
+        self._write_cell_networks_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+
+        self._write_wifi_networks_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
 
         if include_time_span_on_filename:
             video_output_path = os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time))
@@ -348,7 +384,15 @@ class SideSeeingInstance:
         else:
             consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_FILE_NAME)
 
+        if self.consumption is None:
+            print(f"WARNING. No consumption data available for the specified time range: {start_time} to {end_time}.")
+            return
+
         consumption_snippet_data = utils.extract_dataframe_snippet(self.consumption, start_time, end_time)
+        if consumption_snippet_data is None or consumption_snippet_data.empty:
+            print(f"WARNING. No consumption data available for the specified time range: {start_time} to {end_time}.")
+            return
+
         with open(consumption_snippet_output_file, 'w') as fout:
             fout.write(','.join(constants.CONSUMPTION_FILE_FIELDNAMES) + '\n')
             for _, row in consumption_snippet_data.iterrows():
@@ -364,7 +408,15 @@ class SideSeeingInstance:
         else:
             gps_snippet_output_file = os.path.join(output_dir, constants.GPS_FILE_NAME)
 
+        if self.geolocation_points is None:
+            print(f"WARNING. No GPS data available for the specified time range: {start_time} to {end_time}.")
+            return
+
         gps_snippet_data = utils.extract_dataframe_snippet(self.geolocation_points, start_time, end_time)
+        if gps_snippet_data is None or gps_snippet_data.empty:
+                print(f"WARNING. No GPS data available for the specified time range: {start_time} to {end_time}.")
+                return
+
         with open(gps_snippet_output_file, 'w') as fout:
             fout.write(','.join(constants.GPS_FILE_FIELDNAMES) + '\n')
             for _, row in gps_snippet_data.iterrows():
@@ -374,6 +426,63 @@ class SideSeeingInstance:
                     row['accuracy'],
                     row['latitude'],
                     row['longitude']
+                ]
+                fout.write(','.join(map(str, formatted_row)) + '\n')
+
+    def _write_cell_networks_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
+        if include_time_span_on_filename:
+            cell_network_snippet_output_file = os.path.join(output_dir, constants.CELL_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            cell_network_snippet_output_file = os.path.join(output_dir, constants.CELL_FILE_NAME)
+
+        if self.cell_networks is None:
+            print(f"WARNING. No cell network data available for the specified time range: {start_time} to {end_time}.")
+            return
+
+        cell_network_snippet_data = utils.extract_dataframe_snippet(self.cell_networks, start_time, end_time)
+        if cell_network_snippet_data is None or cell_network_snippet_data.empty:
+            print(f"WARNING. No cell network data available for the specified time range: {start_time} to {end_time}.")
+            return
+
+        with open(cell_network_snippet_output_file, 'w') as fout:
+            fout.write(','.join(constants.CELL_FILE_FIELDNAMES) + '\n')
+            for _, row in cell_network_snippet_data.iterrows():
+                formatted_row = [
+                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                    row['registered'],
+                    row['ci'],
+                    row['pci'],
+                    row['earfcn'],
+                    row['rssi'],
+                    row['rsrp'],
+                    row['rsrq'],
+                    row['level']
+                ]
+                fout.write(','.join(map(str, formatted_row)) + '\n')
+
+    def _write_wifi_networks_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
+        if include_time_span_on_filename:
+            wifi_network_snippet_output_file = os.path.join(output_dir, constants.WIFI_SNIPPET_FILE_NAME.format(start_time, end_time))
+        else:
+            wifi_network_snippet_output_file = os.path.join(output_dir, constants.WIFI_FILE_NAME)
+
+        if self.wifi_networks is None:
+            print(f"WARNING. No wifi network data available for the specified time range: {start_time} to {end_time}.")
+            return
+
+        wifi_network_snippet_data = utils.extract_dataframe_snippet(self.wifi_networks, start_time, end_time)
+        if wifi_network_snippet_data is None or wifi_network_snippet_data.empty:
+            print(f"WARNING. No wifi network data available for the specified time range: {start_time} to {end_time}.")
+            return
+        
+        with open(wifi_network_snippet_output_file, 'w') as fout:
+            fout.write(','.join(constants.WIFI_FILE_FIELDNAMES) + '\n')
+            for _, row in wifi_network_snippet_data.iterrows():
+                formatted_row = [
+                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                    row['SSID'],
+                    row['BSSID'],
+                    row['level']
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
