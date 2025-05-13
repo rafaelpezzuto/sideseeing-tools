@@ -37,23 +37,26 @@ class SideSeeingDS:
 
     def setup(self, extract_media):
         self.instances = {}
+        invalid_instances = []
+
         for root, _, files in os.walk(self.data_dir):
             for f in files:
                 if f not in constants.SUPPORTED_FILES:
-                    print(f'WARNING. {os.path.join(root, f)} has been ignored.')
                     continue
 
                 ssf = SideSeeingFile(self.data_dir, os.path.join(root, f))
                 if ssf.is_valid:
                     if ssf.name not in self.instances:
-                        self.instances[ssf.name] = SideSeeingInstance(
-                                ssf.name,
-                                ssf.path,
-                            )
+                        self.instances[ssf.name] = SideSeeingInstance(ssf.name, ssf.path)
                     self.instances[ssf.name].add_file(ssf)
 
         for key in self.instances.keys():
-            self.instances[key].setup(extract_media)
+            is_valid_instance = self.instances[key].setup(extract_media)
+            if not is_valid_instance:
+                invalid_instances.append(key)
+
+        for key in invalid_instances:
+            self.instances.pop(key)
 
         self.populate_sensors()
 
@@ -151,7 +154,6 @@ class SideSeeingFile:
         elif self.file_name.endswith('video.gif'):
             return 'gif'
         else:
-            print(f'WARNING. Unknown file type detected: {self.file_path}.')
             return 'unknown'
 
     def __str__(self):
@@ -194,10 +196,10 @@ class SideSeeingInstance:
             with open(self.files['metadata'].file_path) as json_file:
                 self.metadata = json.load(json_file)
         except KeyError:
-            raise exceptions.MetadataFileDoesNotExistError(f'ERROR. Metadata file is missing for {self.name}')
+            return False
 
         if self.metadata is None:
-            raise exceptions.InvalidMetadataFileError(f'ERROR. Metadata file is is invalid for {self.name}')
+            return False
 
         media_start_time = utils.extract_media_start_time(self.metadata)
         media_stop_time = utils.extract_media_stop_time(self.metadata)
@@ -286,6 +288,8 @@ class SideSeeingInstance:
                 if extract_media:
                     self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
                     self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
+
+        return True
 
     def extract_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename=False):
         '''
