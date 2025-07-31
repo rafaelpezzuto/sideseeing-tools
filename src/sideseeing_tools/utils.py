@@ -196,6 +196,46 @@ def preprocess_gps(data: dict, datetime_format: str, start_time=None, end_time=N
     return to_dataframe(rows, 1, datetime_format, data_type='gps')
 
 
+def parse_wcdma(cell_info_str: str):
+    result = {}
+
+    patterns = {
+        'registered': r'mRegistered=(\w+)',
+        'timestamp': r'mTimeStamp=(\d+)[ns|]',
+        'connection_status': r'mCellConnectionStatus=(\d+)',
+        'lac': r'mLac=(\d+)',
+        'cid': r'mCid=(\d+)',
+        'psc': r'mPsc=(\d+)',
+        'uarfcn': r'mUarfcn=(\d+)',
+        'mcc': r'mMcc=(\d+)',
+        'mnc': r'mMnc=(\d+)',
+        'alpha_long': r'mAlphaLong=(.+?)(?=\s\w+=|\s*})',
+        'alpha_short': r'mAlphaShort=(.+?)(?=\s\w+=|\s*})',
+        'ss': r'ss=(-?\d+)',
+        'ber': r'ber=(\d+)',
+        'rscp': r'rscp=(-?\d+)',
+        'ecno': r'ecno=(-?\d+)',
+        'level': r'level=(\d+)',
+    }
+
+    for key, pattern in patterns.items():
+        match = re.search(pattern, cell_info_str)
+        if match:
+            value = match.group(1).strip()
+
+            if key == 'registered':
+                result[key] = value.lower() == 'yes'
+            elif key in ['connection_status', 'timestamp', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'ber', 'rscp', 'ecno', 'level']:
+                try:
+                    result[key] = int(value)
+                except ValueError:
+                    result[key] = value
+            else:
+                result[key] = value
+
+    return result
+
+
 def process_cell_networks(path, datetime_format: str, start_time=None, end_time=None):
     data = []
 
@@ -204,39 +244,45 @@ def process_cell_networks(path, datetime_format: str, start_time=None, end_time=
 
         for line in fin:
             try:
-                datetime_str, rest = line.strip().split(",", 1)
-                ts = datetime.datetime.strptime(datetime_str, datetime_format)
+                datetime_str, wcdma_str  = line.strip().split(',', 1)
+            except ValueError as e:
+                print(f"ERROR. Error splitting line: {line}: {e}")
+                continue
 
+            try:
+                ts = datetime.datetime.strptime(datetime_str, datetime_format)
+            except ValueError as e:
+                print(f"ERROR. Error parsing datetime: {datetime_str}: {e}")
+                continue
+
+            try:
                 if start_time and ts < start_time:
                     continue
                 if end_time and ts > end_time:
                     continue
-
-                reg_match = re.search(r'mRegistered=(\w+)', rest)
-                ci_match = re.search(r'mCi=(\d+)', rest)
-                pci_match = re.search(r'mPci=(\d+)', rest)
-                earfcn_match = re.search(r'mEarfcn=(\d+)', rest)
-                rssi_match = re.search(r'rssi=(-?\d+)', rest)
-                rsrp_match = re.search(r'rsrp=(-?\d+)', rest)
-                rsrq_match = re.search(r'rsrq=(-?\d+)', rest)
-                level_match = re.search(r'level=(\d+)', rest)
-
-                row = {
-                    'Datetime UTC': datetime_str,
-                    'registered': reg_match.group(1) if reg_match else None,
-                    'ci': ci_match.group(1) if ci_match else None,
-                    'pci': pci_match.group(1) if pci_match else None,
-                    'earfcn': earfcn_match.group(1) if earfcn_match else None,
-                    'rssi': rssi_match.group(1) if rssi_match else None,
-                    'rsrp': rsrp_match.group(1) if rsrp_match else None,
-                    'rsrq': rsrq_match.group(1) if rsrq_match else None,
-                    'level': level_match.group(1) if level_match else None
-                }
-
-                data.append(row)
             except Exception as e:
-                print(f"Error processing line: {line.strip()}: {e}")
+                print(f"ERROR. Error checking time range: {e}")
                 continue
+
+            try:
+                wcdma_data = parse_wcdma(wcdma_str)
+            except Exception as e:
+                print(f"ERROR. Error parsing WCDMA data: {wcdma_str}: {e}")
+                continue
+
+            row = {
+                'Datetime UTC': ts,
+            }
+
+            if not isinstance(wcdma_data, dict):
+                print(f"ERROR. Parsed line is not a dictionary: {wcdma_data}")
+                continue
+
+            for key in wcdma_data.keys():
+                if key in ['timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'ber', 'rscp', 'ecno', 'level']:
+                    row[key] = wcdma_data.get(key)
+
+            data.append(row)
 
     return to_dataframe(data, 1, datetime_format, data_type='cell', create_time_column=True)
 
@@ -249,7 +295,12 @@ def process_wifi_networks(path, datetime_format: str, start_time=None, end_time=
 
         for line in fin:
             try:
-                datetime_str, rest = line.strip().split(",", 1)
+                datetime_str, wifi_data = line.strip().split(",", 1)
+            except ValueError as e:
+                print(f"Error splitting line: {line.strip()}: {e}")
+                continue
+
+            try:
                 ts = datetime.datetime.strptime(datetime_str, datetime_format)
 
                 if start_time and ts < start_time:
@@ -257,25 +308,25 @@ def process_wifi_networks(path, datetime_format: str, start_time=None, end_time=
                 if end_time and ts > end_time:
                     continue
 
-                ssid_match = re.search(r'SSID: "(.*?)"', rest)
-                bssid_match = re.search(r'BSSID: ([0-9a-f:]{17})', rest)
-                level_match = re.search(r'level: (-?\d+)', rest)
-                freq_match = re.search(r'frequency: (\d+)', rest)
-                standard_match = re.search(r'standard: (\w+)', rest)
+            except ValueError as e:
+                print(f"Error parsing datetime: {datetime_str}: {e}")
 
-                row = {
-                    'Datetime UTC': datetime_str,
-                    'SSID': ssid_match.group(1) if ssid_match else None,
-                    'BSSID': bssid_match.group(1) if bssid_match else None,
-                    'level': level_match.group(1) if level_match else None,
-                    'frequency': freq_match.group(1) if freq_match else None,
-                    'standard': standard_match.group(1) if standard_match else None
-                }
+            ssid_match = re.search(r'SSID: "(.*?)"', wifi_data)
+            bssid_match = re.search(r'BSSID: ([0-9a-f:]{17})', wifi_data)
+            level_match = re.search(r'level: (-?\d+)', wifi_data)
+            freq_match = re.search(r'frequency: (\d+)', wifi_data)
+            standard_match = re.search(r'standard: (\w+)', wifi_data)
 
-                data.append(row)
-            except Exception as e:
-                print(f"Error processing line: {line.strip()}: {e}")
-                continue
+            row = {
+                'Datetime UTC': datetime_str,
+                'SSID': ssid_match.group(1) if ssid_match else None,
+                'BSSID': bssid_match.group(1) if bssid_match else None,
+                'level': level_match.group(1) if level_match else None,
+                'frequency': freq_match.group(1) if freq_match else None,
+                'standard': standard_match.group(1) if standard_match else None
+            }
+
+            data.append(row)
 
     return to_dataframe(data, 1, datetime_format, data_type='wifi', create_time_column=True)
 
@@ -309,7 +360,7 @@ def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', 
         columns.extend(['SSID', 'BSSID', 'level', 'frequency', 'standard'])
 
     elif data_type == 'cell':
-        columns.extend(['registered', 'ci', 'pci', 'earfcn', 'rssi', 'rsrp', 'rsrq', 'level'])
+        columns.extend(['timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'ber', 'rscp', 'ecno', 'level'])
 
     df = pd.DataFrame(data, columns=columns)
 
