@@ -279,7 +279,7 @@ def process_cell_networks(path, datetime_format: str, start_time=None, end_time=
                 continue
 
             for key in wcdma_data.keys():
-                if key in ['timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'ber', 'rscp', 'ecno', 'level']:
+                if key in ['timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'alpha_long', 'alpha_short', 'ss', 'ber', 'rscp', 'ecno', 'level']:
                     row[key] = wcdma_data.get(key)
 
             data.append(row)
