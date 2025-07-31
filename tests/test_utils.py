@@ -4,6 +4,183 @@ from src.sideseeing_tools.utils import parse_wcdma
 
 
 class TestParseWcdma(unittest.TestCase):
+    def test_parse_wcdma_specific_case_1(self):
+        """Test parsing specific WCDMA data case 1 with Claro (America Movil)."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=36211 mCid=190805339 mPsc=350 mUarfcn=4437 mMcc=724 mMnc=05 mAlphaLong=Claro (America Movil) mAlphaShort=Claro mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-71 ber=2147483647 rscp=-120 ecno=-24 level=4}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 36211,
+            'cid': 190805339,
+            'psc': 350,
+            'uarfcn': 4437,
+            'mcc': 724,
+            'mnc': 5,
+            'alpha_long': 'Claro (America Movil)',
+            'alpha_short': 'Claro',
+            'ss': -71,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 4
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_2(self):
+        """Test parsing specific WCDMA data case 2 with null MCC/MNC values."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=350 mUarfcn=4414 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-71 ber=2147483647 rscp=-120 ecno=-24 level=4}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 350,
+            'uarfcn': 4414,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -71,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 4
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_3(self):
+        """Test parsing specific WCDMA data case 3 with PSC 342 and level 3."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=342 mUarfcn=4414 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-79 ber=2147483647 rscp=-120 ecno=-24 level=3}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 342,
+            'uarfcn': 4414,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -79,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 3
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_4(self):
+        """Test parsing specific WCDMA data case 4 with PSC 419 and ss -83."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=419 mUarfcn=4414 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-83 ber=2147483647 rscp=-120 ecno=-24 level=3}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 419,
+            'uarfcn': 4414,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -83,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 3
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_5(self):
+        """Test parsing specific WCDMA data case 5 with PSC 277."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=277 mUarfcn=4414 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-83 ber=2147483647 rscp=-120 ecno=-24 level=3}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 277,
+            'uarfcn': 4414,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -83,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 3
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_6(self):
+        """Test parsing specific WCDMA data case 6 with PSC 426."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=426 mUarfcn=4414 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-83 ber=2147483647 rscp=-120 ecno=-24 level=3}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 426,
+            'uarfcn': 4414,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -83,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 3
+        }
+        
+        self.assertEqual(result, expected)
+
+    def test_parse_wcdma_specific_case_7(self):
+        """Test parsing specific WCDMA data case 7 with UARFCN 10638 and level 1."""
+        cell_info = "CellInfoWcdma:{mRegistered=NO mTimeStamp=677579659304ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=2147483647 mCid=2147483647 mPsc=379 mUarfcn=10638 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-101 ber=2147483647 rscp=-120 ecno=-24 level=1}"
+        
+        result = parse_wcdma(cell_info)
+        
+        expected = {
+            'registered': False,
+            'timestamp': 677579659304,
+            'connection_status': 0,
+            'lac': 2147483647,
+            'cid': 2147483647,
+            'psc': 379,
+            'uarfcn': 10638,
+            'alpha_long': '',
+            'alpha_short': '',
+            'ss': -101,
+            'ber': 2147483647,
+            'rscp': -120,
+            'ecno': -24,
+            'level': 1
+        }
+        
+        self.assertEqual(result, expected)
+
     def test_parse_wcdma_multiple_cases(self):
         cases = [
             '2025-03-24T01:56:56.704Z,CellInfoWcdma:{mRegistered=NO mTimeStamp=19839469731ns mCellConnectionStatus=0 CellIdentityWcdma:{ mLac=36211 mCid=190835977 mPsc=350 mUarfcn=4414 mMcc=724 mMnc=05 mAlphaLong=Claro (America Movil) mAlphaShort=Claro mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthWcdma: ss=-69 ber=2147483647 rscp=-120 ecno=-24 level=4}'

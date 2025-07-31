@@ -209,8 +209,8 @@ def parse_wcdma(cell_info_str: str):
         'uarfcn': r'mUarfcn=(\d+)',
         'mcc': r'mMcc=(\d+)',
         'mnc': r'mMnc=(\d+)',
-        'alpha_long': r'mAlphaLong=(.+?)(?=\s\w+=|\s*})',
-        'alpha_short': r'mAlphaShort=(.+?)(?=\s\w+=|\s*})',
+        'alpha_long': r'mAlphaLong=(.*?)(?=\s\w+=|\s*})',
+        'alpha_short': r'mAlphaShort=(.*?)(?=\s\w+=|\s*})',
         'ss': r'ss=(-?\d+)',
         'ber': r'ber=(\d+)',
         'rscp': r'rscp=(-?\d+)',
@@ -232,7 +232,6 @@ def parse_wcdma(cell_info_str: str):
                     result[key] = value
             else:
                 result[key] = value
-
     return result
 
 
@@ -360,7 +359,7 @@ def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', 
         columns.extend(['SSID', 'BSSID', 'level', 'frequency', 'standard'])
 
     elif data_type == 'cell':
-        columns.extend(['timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'ber', 'rscp', 'ecno', 'level'])
+        columns.extend(['timestamp', 'registered', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'ss', 'alpha_long', 'alpha_short', 'ber', 'rscp', 'ecno', 'level'])
 
     df = pd.DataFrame(data, columns=columns)
 
