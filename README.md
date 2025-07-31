@@ -109,18 +109,20 @@ my_sample.extract_snippet(
 )
 ```
 
-Running the command `extract_snippet` will generate one file for the video (with audio), one file for consumption data, one file for GPS data, and one file for each sensor type (single-axis, three-axis, three-axis uncalibrated) present in the instance. See an illustrative example in the following file tree.
+Running the command `extract_snippet` will generate one file for the video (with audio), one file for consumption data, one file for GPS data, one file for each sensor type (single-axis, three-axis, three-axis uncalibrated) and one for each network type (cell, wifi) present in the instance. See an illustrative example in the following file tree.
 
 ```text
 home/
 ├─ user/
 │  ├─ snippet_2_17/
+|  |  ├─ cell.2_17.csv
 │  │  ├─ consumption.2_17.csv
 │  │  ├─ gps.2_17.csv
 │  │  ├─ sensors.one.2_17.csv
 │  │  ├─ sensors.three.2_17.csv
 │  │  ├─ sensors.three.uncalibrated.2_17.csv
 │  │  ├─ video.2_17.mp4
+│  │  ├─ wifi.2_17.csv
 ```
 
 __Extract only video snippets__
