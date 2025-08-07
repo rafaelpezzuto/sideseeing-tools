@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import reverse_geocode
 
+from .constants import CELL_SNIPPET_HEADER, WIFI_SNIPPET_HEADER
+
 
 def load_csv_data(path: str, fieldnames: list, delimiter=','):
     '''
@@ -277,9 +279,9 @@ def process_cell_networks(path, datetime_format: str, start_time=None, end_time=
                 print(f"ERROR. Parsed line is not a dictionary: {wcdma_data}")
                 continue
 
-            for key in wcdma_data.keys():
-                if key in ['registered', 'timestamp', 'connection_status', 'lac', 'cid', 'psc', 'uarfcn', 'mcc', 'mnc', 'alpha_long', 'alpha_short', 'ss', 'ber', 'rscp', 'ecno', 'level']:
-                    row[key] = wcdma_data.get(key)
+            for key in CELL_SNIPPET_HEADER:
+                if key != 'Datetime UTC':
+                    row[key] = wcdma_data.get(key, '')
 
             data.append(row)
 
