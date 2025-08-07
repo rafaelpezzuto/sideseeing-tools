@@ -110,3 +110,32 @@ SUPPORTED_FILES = [
   'labels.csv',
   VIDEO_FILE_NAME,
 ]
+
+CELL_SNIPPET_HEADER = [
+  'Datetime UTC',
+  'registered',
+  'timestamp',
+  'connection_status',
+  'lac',
+  'cid',
+  'psc',
+  'uarfcn',
+  'mcc',
+  'mnc',
+  'alpha_long',
+  'alpha_short',
+  'ss',
+  'ber',
+  'rscp', 
+  'ecno',
+  'level',
+]
+
+WIFI_SNIPPET_HEADER = [
+  'Datetime UTC',
+  'SSID',
+  'BSSID',
+  'level',
+  'frequency',
+  'standard',
+]
