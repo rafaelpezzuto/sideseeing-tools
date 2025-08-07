@@ -1,6 +1,6 @@
 [project]
 name = "sideseeing-tools"
-version = "0.9.0"
+version = "0.9.1"
 authors = [
   {name="Rafael J. P. Damaceno", email="rafael.damaceno@ime.usp.br"},
 ]
