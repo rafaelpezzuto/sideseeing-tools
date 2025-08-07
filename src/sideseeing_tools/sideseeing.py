@@ -449,19 +449,14 @@ class SideSeeingInstance:
             return
 
         with open(cell_network_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.CELL_FILE_FIELDNAMES) + '\n')
+            fout.write(','.join(constants.CELL_SNIPPET_HEADER) + '\n')
             for _, row in cell_network_snippet_data.iterrows():
-                formatted_row = [
-                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-                    row['registered'],
-                    row['ci'],
-                    row['pci'],
-                    row['earfcn'],
-                    row['rssi'],
-                    row['rsrp'],
-                    row['rsrq'],
-                    row['level']
-                ]
+                formatted_row = []
+                for key in constants.CELL_SNIPPET_HEADER:
+                    if key == 'Datetime UTC':
+                        formatted_row.append(row[key].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z')
+                    else:
+                        formatted_row.append(row[key])
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
     def _write_wifi_networks_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
@@ -480,13 +475,15 @@ class SideSeeingInstance:
             return
         
         with open(wifi_network_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.WIFI_FILE_FIELDNAMES) + '\n')
+            fout.write(','.join(constants.WIFI_SNIPPET_HEADER) + '\n')
             for _, row in wifi_network_snippet_data.iterrows():
                 formatted_row = [
                     row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
                     row['SSID'],
                     row['BSSID'],
-                    row['level']
+                    row['level'],
+                    row['frequency'],
+                    row['standard'],
                 ]
                 fout.write(','.join(map(str, formatted_row)) + '\n')
 
