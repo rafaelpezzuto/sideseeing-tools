@@ -1,43 +1,31 @@
 import os
 import io
 import base64
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
-import sideseeing, plot
+from . import sideseeing, plot
+import shutil
+import importlib.resources
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, PackageLoader
 from typing import List, Dict, Tuple, Optional
 
 class Report:
 
-    DEFAULT_TEMPLATE = "/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/templates/t2.html"
+    DEFAULT_TEMPLATE_PACKAGE = "sideseeing_tools.templates"
+    DEFAULT_TEMPLATE_NAME = "template_report.html"
 
-    def __init__(self, default_template_path: str = DEFAULT_TEMPLATE):
+    def __init__(self):
         """
-        Inicializa o Report com um template padrão.
+        Inicializa a classe Report.
         """
-        self.default_template_path = default_template_path
-        self._validate_template_exists(default_template_path)
+        env = Environment(
+            loader=PackageLoader(self.DEFAULT_TEMPLATE_PACKAGE.split('.')[0], 
+                                 self.DEFAULT_TEMPLATE_PACKAGE.split('.', 1)[1])
+        )
+        self.template = env.get_template(self.DEFAULT_TEMPLATE_NAME)
 
-    def _validate_template_exists(self, template_path: str) -> None:
-        """
-        Verifica se o template existe.
-        """
-        if not os.path.exists(template_path):
-            raise FileNotFoundError(f"O Template {template_path} não foi encontrado.")
-
-    def _load_template(self, template_path: Optional[str] = None) -> Template:
-        """
-        Carrega um template padrão ou um personalizado.
-        """
-        path = template_path or self.default_template_path
-        self._validate_template_exists(path)
-        
-        template_dir = os.path.dirname(path) or '.'
-        template_file_name = os.path.basename(path)
-        
-        env = Environment(loader=FileSystemLoader(template_dir))
-        return env.get_template(template_file_name)
 
     def _load_sideseeing_data(self, dir_path: str) -> Tuple[str, sideseeing.SideSeeingDS]:
         """
@@ -81,13 +69,17 @@ class Report:
         
         return summary_data
 
-    def _process_sensors_data(self, ds: sideseeing.SideSeeingDS) -> Optional[str]:
+    def _process_sensors_data(self, ds: sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
         """
-        Processa os dados de sensores usando a função externa plot_sensor para cada instância.
+        Prepara os dados dos sensores, salvando um JSON por amostra no diretório 'output_data_dir'.
+
+        Retorna um dicionário onde:
+            - Chave: nome da amostra (instance_name)
+            - Valor: caminho relativo para o arquivo JSON (ex: 'data/sensors_amostra_A.json')
         """
-        print("Processando dados de sensores...")
-        html_components = []
-        plotter = plot.SideSeeingPlotter(ds)
+        print("Preparando dados dos sensores (exportando para JSONs)...")
+        
+        charts_by_instance: Dict[str, List[Dict]] = {}
         sensors_axis = {
             'sensors1': ['x'],
             'sensors3': ['x', 'y', 'z'],
@@ -95,43 +87,96 @@ class Report:
         }
         sensors = ds.sensors
 
-        for axis, sensors in sensors.items():
-            if not sensors:
+        for axis, sensors_map in sensors.items():
+            if not sensors_map:
                 continue
 
             axis_columns = sensors_axis.get(axis)
             if not axis_columns:
                 continue
 
-            for sensor, instance_set in sensors.items():
-                # Cabeçalho para o tipo de sensor
-                html_components.append(f"<hr><h3>Sensor: {sensor}</h3>")
-                
-                # Iteramos sobre cada instância
+            for sensor_name, instance_set in sensors_map.items():
                 for instance_name in sorted(list(instance_set)):
                     instance = ds.instances[instance_name]
                     sensor_data_dict = getattr(instance, axis, {})
-                    df = sensor_data_dict.get(sensor)
+                    df = sensor_data_dict.get(sensor_name)
 
                     if df is not None and not df.empty:
-                        fig, _ = plotter.plot_sensor(data=df, time_column='Time (s)', axis_columns=axis_columns, title=f"Amostra: {instance.name}")
+                        # ID para a div que terá o gráfico
+                        chart_id = f"chart_{instance.name}_{sensor_name.replace(' ', '_')}"
+                        
+                        # formato Plotly
+                        traces = []
+                        for col in axis_columns: 
+                            traces.append({
+                                'x': df['Time (s)'].tolist(),
+                                'y': df[col].tolist(),
+                                'mode': 'lines',
+                                'name': col
+                            })
 
-                        # Processa a figura retornada para embutir no HTML
-                        if fig:
-                            buf = io.BytesIO()
-                            fig.savefig(buf, format='png', bbox_inches='tight')
-                            plt.close(fig)
-                            img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-                            html_components.append(f'<img src="data:image/png;base64,{img_base64}" class="img-fluid mb-4"/>')
+                        layout = {
+                            'title': f'<b>Sensor:</b> {sensor_name}',
+                            'xaxis': {'title': 'Tempo (s)'},
+                            'yaxis': {'title': 'Valor'},
+                            'margin': {'l': 50, 'r': 50, 'b': 50, 't': 50} 
+                        }
+                        
+                        chart_dict = {
+                            'chart_id': chart_id,
+                            'data': traces,
+                            'layout': layout
+                        }
 
-        if not html_components:
-            return "<p>Nenhum dado de sensor processável foi encontrado no dataset.</p>"
+                        if instance_name not in charts_by_instance:
+                            charts_by_instance[instance_name] = []
+                        
+                        charts_by_instance[instance_name].append(chart_dict)
 
-        return "\n".join(html_components)
+        if not charts_by_instance:
+            return None
+
+        os.makedirs(output_data_dir, exist_ok=True)
+        # Mapeia instance_name -> "data/sensors_instance_name.json"
+        instance_json_map: Dict[str, str] = {}
+        
+        for instance_name, charts_list in charts_by_instance.items():
+            json_filename = f"sensors_{instance_name}.json"
+            json_save_path = os.path.join(output_data_dir, json_filename)
+            # Caminho que o HTML usará
+            json_relative_path = f"data/{json_filename}" 
+
+            with open(json_save_path, 'w', encoding='utf-8') as f:
+                json.dump(charts_list, f) 
+            
+            instance_json_map[instance_name] = json_relative_path
+
+        return instance_json_map    
     
-    # separar os sensores
+    def _copy_assets(self, output_dir: str):
+        """
+        Copia os assets (CSS/JS) de dentro do pacote para o diretório de saída.
+        """
+        print("Copiando arquivos de assets (CSS/JS)...")
+        assets = ['template.js', 'template.css']
+        
+        try:
+            for asset in assets:
+                # Encontra o arquivo dentro do pacote
+                traversable = importlib.resources.files(self.DEFAULT_TEMPLATE_PACKAGE).joinpath(asset)
+                
+                # Abre como um arquivo temporário no sistema
+                with importlib.resources.as_file(traversable) as src_path:
+                    destiny_path = os.path.join(output_dir, asset)
+                    shutil.copy(src_path, destiny_path)
+            
+            print(f"Assets copiados para {output_dir}")
 
-    def generate_report(self, dir_path: str, output_path: str, template_path: Optional[str] = None):
+        except Exception as e:
+            print(f"ERRO ao copiar assets: {e}. Verifique se os arquivos de template estão incluídos no pacote.")
+
+
+    def generate_report(self, dir_path: str, output_path: str):
         """
         Gera um relatório HTML completo a partir de um diretório de dados.
         """
@@ -140,19 +185,20 @@ class Report:
 
         summary = self._create_summary(ds)
 
-        # Processa as diferentes seções do relatório
+        output_dir = os.path.dirname(output_path) or '.'
+        output_data_dir = os.path.join(output_dir, 'data')
+
         sections = {
-            'sensor': self._process_sensors_data(ds)
+            'sensor': self._process_sensors_data(ds, output_data_dir)
             # Futuramente:
-            # 'geo': self._process_geo_data(ds),
-            # 'images': self._process_images_data(ds)
+            # 'geo': self._process_geo_data(ds, output_data_dir),
+            # 'images': self._process_images_data(ds, output_data_dir)
         }
-        
-        # Filtra seções que não foram processadas
+
+        # Filtra seções para o display   
         processed_sections = {key: value for key, value in sections.items() if value is not None}
 
-        print("Carregando template...")
-        template = self._load_template(template_path)
+        print("Renderizando template...")
 
         context = {
             "title": title,
@@ -161,9 +207,8 @@ class Report:
             "data_geracao": datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         }
 
-        html_output = template.render(context)
+        html_output = self.template.render(context)
 
-        output_dir = os.path.dirname(output_path)
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         
@@ -172,8 +217,14 @@ class Report:
         
         print(f"Relatório salvo com sucesso em: {output_path}")
 
+        self._copy_assets(output_dir)
+        
+
+
+# --- SEU SCRIPT DE TESTE ---
 
 dir_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/dataset'
-out_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/out/1.html'
+out_path = '/home/renzo/Documents/GitHub/sideseeing-tools/coisas/out/report.html'
+
 r = Report()
 r.generate_report(dir_path, out_path)
