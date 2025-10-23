@@ -427,13 +427,13 @@ class SideSeeingPlotter:
             ax.set_ylim(ylim)
 
         ax.legend()
-        fig.show()
+        return fig, ax
 
     def plot_sensors(self, data, time_column, axis_columns, xlim=None, ylim=None, linewidth=0.75, sharex=True, sharey=True):
         if len(data) == 0:
-            return
+            return None, None
 
-        _, axis = plt.subplots(len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey)
+        fig, axis = plt.subplots(len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey)
 
         for ind_plot, item in enumerate(data):
             instance_name = item['instance_name']
@@ -450,4 +450,4 @@ class SideSeeingPlotter:
                 axis[ind_plot].set_ylim(ylim)
 
         plt.tight_layout()
-        plt.show()
+        return fig, axis 
