@@ -163,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`;
 
         chartsData.forEach((chart, index) => {
+            // Título limpo (ex: "acelerometro")
             const title = chart.layout.title ? chart.layout.title.replace(/<b>Sensor:<\/b>\s*/i, '') : `Sensor ${index + 1}`;
             const chartId = chart.chart_id;
 
@@ -173,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            value="${chartId}" 
                            id="chk-${chartId}"
                            data-sample-path="${jsonPath}"
-                           data-sensor-name="${title}">
+                           data-sensor-name="${title}"> 
                     <label class="form-check-label" for="chk-${chartId}">
                         ${title}
                     </label>
@@ -186,11 +187,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * REESCRITA TOTAL: Desenha gráficos agrupados por sensor
+     * =================================================================
+     * FUNÇÃO ATUALIZADA (LÓGICA CORRETA)
+     * =================================================================
+     * Desenha um gráfico para CADA checkbox selecionado, sem agrupar.
+     * Adiciona o nome da amostra ao TÍTULO do gráfico.
      */
     function renderSelectedCharts() {
         chartsContainer.innerHTML = ''; // Limpa gráficos antigos
 
+        // Pega todos os checkboxes que estão MARCADOS
         const checkedBoxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox:checked');
 
         if (checkedBoxes.length === 0) {
@@ -198,76 +204,41 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // 1. Agrupar checkboxes por nome do sensor (data-sensor-name)
-        const chartsToRender = new Map();
-        checkedBoxes.forEach(chk => {
-            const sensorName = chk.dataset.sensorName;
-            const chartId = chk.value;
-            const samplePath = chk.dataset.samplePath;
-            
-            if (!chartsToRender.has(sensorName)) {
-                chartsToRender.set(sensorName, []);
-            }
-            chartsToRender.get(sensorName).push({ chartId, samplePath });
-        });
+        // Itera sobre CADA checkbox marcado individualmente
+        checkedBoxes.forEach(checkbox => {
+            const chartId = checkbox.value;
+            const samplePath = checkbox.dataset.samplePath; 
 
-        // 2. Iterar sobre cada grupo de sensor (ex: "Acelerômetro")
-        chartsToRender.forEach((sources, sensorName) => {
-            
-            const combinedTraces = [];
-            const samplesInThisChart = new Set(); // <-- NOVO: Para coletar nomes
-            
-            const newLayout = {
-                // Título será definido abaixo
-                xaxis: { title: 'Tempo (s)' },
-                yaxis: { title: 'Valor' },
-                margin: { l: 50, r: 50, b: 50, t: 50 },
-                showlegend: true
-            };
+            // 1. Encontra os dados da amostra correta
+            const sample = loadedSamplesData[samplePath];
+            if (!sample) return; 
 
-            // 3. Iterar sobre as fontes (amostras) para este sensor
-            sources.forEach(source => {
-                const sample = loadedSamplesData[source.samplePath];
-                if (!sample) return;
-                
-                const sampleName = sample.name;
-                samplesInThisChart.add(sampleName); // <-- NOVO: Adiciona nome ao Set
-                
-                const chartData = sample.data.find(c => c.chart_id === source.chartId);
+            // 2. Encontra os dados do gráfico específico dentro da amostra
+            const chartData = sample.data.find(c => c.chart_id === chartId);
 
-                if (chartData) {
-                    // 4. Adicionar os traces da amostra, modificando o nome para diferenciação
-                    chartData.data.forEach(trace => {
-                        const newTrace = { ...trace };
-                        
-                        // ===== MUDANÇA REQUISITADA (Formato da Legenda) =====
-                        // Altera o nome da legenda para um formato mais limpo
-                        // Antes: Amostra A (x)
-                        // Agora: Amostra A: x
-                        newTrace.name = `${sampleName}: ${trace.name}`; 
-                        // ===================================================
-                        
-                        combinedTraces.push(newTrace);
-                    });
-                }
-            });
-
-            // ===== MUDANÇA REQUISITADA (Subtítulo no Gráfico) =====
-            // Cria o subtítulo com a lista de amostras
-            const sampleNamesStr = Array.from(samplesInThisChart).join(', ');
-            newLayout.title = `<b>Sensor:</b> ${sensorName}<br><span style="font-size:0.8em; color: #555;">Amostras: ${sampleNamesStr}</span>`;
-            // ========================================================
-
-            // 5. Criar o div e plotar o gráfico combinado
-            if (combinedTraces.length > 0) {
+            if (chartData) {
+                // 3. Prepara o DIV
                 const chartDiv = document.createElement('div');
-                chartDiv.id = `chart-compare-${sensorName.replace(/\s+/g, '_')}`;
+                // Usamos o chartId original, que é único por amostra/sensor
+                chartDiv.id = chartData.chart_id; 
                 chartDiv.className = 'col-12 col-lg-6 mb-4'; // Ocupa metade da tela
                 chartDiv.style.width = '100%';
                 chartDiv.style.height = '450px';
                 
                 chartsContainer.appendChild(chartDiv);
-                Plotly.newPlot(chartDiv, combinedTraces, newLayout, { responsive: true });
+
+                // 4. Prepara o Layout (Adicionando subtítulo)
+                const newLayout = { ...chartData.layout }; // Copia layout original
+                const originalTitle = newLayout.title || 'Sensor';
+                const sampleName = sample.name;
+
+                // Adiciona o nome da amostra como subtítulo
+                newLayout.title = `${originalTitle}<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleName}</span>`;
+
+                // 5. Plota o gráfico
+                // Usa chartData.data (os traces originais "x", "y", "z")
+                // A legenda ficará limpa, como pedido.
+                Plotly.newPlot(chartDiv, chartData.data, newLayout, { responsive: true });
             }
         });
     }

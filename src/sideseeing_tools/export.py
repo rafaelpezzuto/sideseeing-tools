@@ -26,7 +26,6 @@ class Report:
         )
         self.template = env.get_template(self.DEFAULT_TEMPLATE_NAME)
 
-
     def _load_sideseeing_data(self, dir_path: str) -> Tuple[str, sideseeing.SideSeeingDS]:
         """
         Carrega o dataset usando o sideseeing-tools.
@@ -153,12 +152,23 @@ class Report:
 
         return instance_json_map    
     
+    def _process_geo_data(self, ds:sideseeing.SideSeeingDS,output_data_dir: str) -> Optional[Dict[str, str]]:
+        """
+        Prepara os dados geoespaciais, salvando um JSON por amostra no diretório 'output_data_dir'.
+        """
+        print("Preparando dados geoespaciais (exportando para JSONs)...")
+
+        pass
+
+    def _process_wifi_data(self, ds:sideseeing.SideSeeingDS,output_data_dir: str) -> Optional[Dict[str, str]]:
+        pass
+
     def _copy_assets(self, output_dir: str):
         """
         Copia os assets (CSS/JS) de dentro do pacote para o diretório de saída.
         """
         print("Copiando arquivos de assets (CSS/JS)...")
-        assets = ['template.js', 'template.css']
+        assets = ['template2.js', 'template.css']
         
         try:
             for asset in assets:
@@ -224,7 +234,9 @@ class Report:
 # --- SEU SCRIPT DE TESTE ---
 
 dir_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/dataset'
-out_path = '/home/renzo/Documents/GitHub/sideseeing-tools/coisas/out/report.html'
+out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out/report.html'
 
 r = Report()
 r.generate_report(dir_path, out_path)
+
+# python3 -m sideseeing_tools.export 
