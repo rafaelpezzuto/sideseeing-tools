@@ -159,9 +159,132 @@ class Report:
         print("Preparando dados geoespaciais (exportando para JSONs)...")
 
         pass
+    
+    def _join_wifi_gps(self, wifi_df: pd.DataFrame, gps_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Junta os dataframes de wifi e gps com base no timestamp mais próximo.
+        Baseado em join_dfs de wifi-zones.ipynb.
+        """
+        #
+        merged_df = pd.merge_asof(
+            wifi_df.sort_values("unix_ms"),
+            gps_df.sort_values("unix_ms"),
+            on="unix_ms",
+            direction="nearest",
+            tolerance=1000  # tolerância de 1 segundo (1000ms)
+        )
+        # Remove linhas que não conseguiram fazer o merge com um GPS
+        merged_df = merged_df[merged_df["latitude"].notna() & merged_df["longitude"].notna()]
+        return merged_df
+    
+    def _aggregate_wifi_data(self, merged_df: pd.DataFrame) -> Dict:
+        """
+        Agrega os dados de wifi, calculando a média do sinal por SSID, 
+        banda de frequência e localização.
+        """
+        if merged_df.empty:
+            return {}
 
-    def _process_wifi_data(self, ds:sideseeing.SideSeeingDS,output_data_dir: str) -> Optional[Dict[str, str]]:
-        pass
+        # 1. Garante que 'level' e 'frequency' são numéricos
+        #    (Lógica similar a clean_wifi_df em wifi-zones.ipynb)
+        merged_df['level'] = pd.to_numeric(merged_df['level'], errors='coerce')
+        merged_df['frequency'] = pd.to_numeric(merged_df['frequency'], errors='coerce')
+
+        # 2. Determina a banda (2.4GHz ou 5GHz)
+        merged_df['band'] = (merged_df['frequency'] // 1000).map({2: '2.4GHz', 5: '5GHz'})
+        
+        # Remove dados que não puderam ser processados
+        merged_df.dropna(subset=['band', 'level', 'SSID', 'latitude', 'longitude'], inplace=True)
+        if merged_df.empty:
+            return {}
+
+        # 3. Agrupa por SSID, banda e timestamp, e calcula a média do sinal
+        #    (Esta é a evolução do groupby de average_dfs)
+        averaged_df = merged_df.groupby(
+            ['SSID', 'band', 'unix_ms'], 
+            as_index=False
+        )['level'].mean()
+
+        # 4. Pega os dados de localização para cada timestamp
+        #    (Lógica de first_occurrence de average_dfs)
+        location_data = merged_df.drop_duplicates(subset='unix_ms')[
+            ['unix_ms', 'latitude', 'longitude']
+        ]
+
+        # 5. Junta a média do sinal com a localização
+        final_df = pd.merge(averaged_df, location_data, on='unix_ms')
+
+        # 6. Formata a saída para um JSON organizado
+        #    A estrutura será: {'SSID_Name': {'2.4GHz': [[lat, lon, lvl], ...], '5GHz': [...]}}
+        output_data = {}
+        for (ssid, band), group in final_df.groupby(['SSID', 'band']):
+            if ssid not in output_data:
+                output_data[ssid] = {}
+            
+            # Prepara os dados no formato que o Folium HeatMap espera
+            heat_data = group[['latitude', 'longitude', 'level']].values.tolist()
+            output_data[ssid][band] = heat_data
+        
+        return output_data
+    
+    def _process_wifi_data(self, ds:sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
+            
+            print("Preparando dados de sinais Wi-Fi (exportando para JSONs)...")
+            os.makedirs(output_data_dir, exist_ok=True)
+            
+            # Mapeia instance_name -> "data/wifi_instance_name.json"
+            instance_json_map: Dict[str, str] = {}
+
+            for sample in ds.iterator:
+                df_wifi_raw = sample.wifi_networks
+                df_gps_raw = sample.geolocation_points
+
+                # Pular amostra se não tiver wifi ou gps
+                if df_wifi_raw is None or df_gps_raw is None or df_wifi_raw.empty or df_gps_raw.empty:
+                    continue
+
+                # 1. Preparar DFs para o merge (lógica de wifi.ipynb)
+                try:
+                    #
+                    df_wifi = df_wifi_raw[['Datetime UTC', 'SSID', 'level', 'frequency']].copy()
+                    df_wifi["unix_ms"] = pd.to_datetime(df_wifi["Datetime UTC"]).astype('int64') // 10**6
+
+                    #
+                    df_gps = df_gps_raw[['Datetime UTC', 'latitude', 'longitude']].copy()
+                    df_gps["unix_ms"] = pd.to_datetime(df_gps["Datetime UTC"]).astype('int64') // 10**6
+                    
+                    # Seleciona colunas finais
+                    df_wifi = df_wifi[["unix_ms", "SSID", "level", "frequency"]]
+                    df_gps = df_gps[["unix_ms", "latitude", "longitude"]]
+                
+                except Exception as e:
+                    print(f"ERRO ao preparar DFs para {sample.name}: {e}")
+                    continue
+
+                # 2. Chamar os helpers
+                merged_data = self._join_wifi_gps(df_wifi, df_gps)
+                aggregated_data = self._aggregate_wifi_data(merged_data)
+
+                if not aggregated_data:
+                    continue # Pula se a agregação não retornou dados
+
+                # 3. Salvar o JSON (Lazy Loading)
+                json_filename = f"wifi_{sample.name}.json"
+                json_save_path = os.path.join(output_data_dir, json_filename)
+                json_relative_path = f"data/{json_filename}" # Caminho que o HTML usará
+
+                try:
+                    with open(json_save_path, 'w', encoding='utf-8') as f:
+                        json.dump(aggregated_data, f) 
+                    
+                    instance_json_map[sample.name] = json_relative_path
+                except Exception as e:
+                    print(f"ERRO ao salvar JSON de Wi-Fi para {sample.name}: {e}")
+
+
+            print(f"Dados de Wi-Fi processados para {len(instance_json_map)} amostras.")
+            return instance_json_map if instance_json_map else None
+
 
     def _copy_assets(self, output_dir: str):
         """
@@ -199,7 +322,8 @@ class Report:
         output_data_dir = os.path.join(output_dir, 'data')
 
         sections = {
-            'sensor': self._process_sensors_data(ds, output_data_dir)
+            'sensor': self._process_sensors_data(ds, output_data_dir),
+            'wifi': self._process_wifi_data(ds, output_data_dir)
             # Futuramente:
             # 'geo': self._process_geo_data(ds, output_data_dir),
             # 'images': self._process_images_data(ds, output_data_dir)
@@ -234,7 +358,7 @@ class Report:
 # --- SEU SCRIPT DE TESTE ---
 
 dir_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/dataset'
-out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out/report.html'
+out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out2/report.html'
 
 r = Report()
 r.generate_report(dir_path, out_path)

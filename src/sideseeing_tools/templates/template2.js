@@ -1,6 +1,6 @@
 /**
  * =================================================================
- * FUNÇÃO DA SIDEBAR
+ * FUNÇÃO DA SIDEBAR (MODIFICADA PARA ATUALIZAR PLOTLY E LEAFLET)
  * =================================================================
  */
 function showSection(sectionId) {
@@ -21,31 +21,47 @@ function showSection(sectionId) {
         activeLink.classList.add('active');
     }
 
-    const plotlyCharts = activeSection.querySelectorAll('.plotly-chart');
-    if (plotlyCharts.length > 0) {
-        setTimeout(() => {
-            plotlyCharts.forEach(chartDiv => {
-                if (chartDiv.data) {
-                    Plotly.Plots.resize(chartDiv);
-                }
-            });
-        }, 150);
-    }
+    // Atraso para garantir que a seção esteja visível antes de redimensionar
+    setTimeout(() => {
+        // 1. Redimensiona gráficos Plotly (Lógica original de Sensores)
+        const plotlyCharts = activeSection.querySelectorAll('.plotly-chart');
+        plotlyCharts.forEach(chartDiv => {
+            if (chartDiv.data) { // Verifica se o Plotly já renderizou
+                Plotly.Plots.resize(chartDiv);
+            }
+        });
+
+        // 2. Redimensiona mapas Leaflet (Nova lógica para Wi-Fi)
+        const leafletMaps = activeSection.querySelectorAll('.leaflet-map-container');
+        leafletMaps.forEach(mapDiv => {
+            const mapId = mapDiv.getAttribute('data-map-id'); //
+            if (mapId && activeMaps[mapId]) {
+                activeMaps[mapId].invalidateSize(); //
+            }
+        });
+    }, 150);
 }
+
+
+// Cache global para instâncias de mapa Leaflet (necessário para redimensionar)
+let activeMaps = {};
 
 
 /**
  * =================================================================
- * NOVA LÓGICA DE LAZY LOADING (AMOSTRA -> CHECKBOXES -> GRÁFICOS)
+ * LÓGICA DE CARREGAMENTO QUANDO O DOM ESTIVER PRONTO
  * =================================================================
  */
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Armazena os dados de TODAS as amostras selecionadas
-    // Estrutura: { "path/to/json": { name: "Nome Amostra", data: [...] }, ... }
-    let loadedSamplesData = {};
+    /**
+     * =================================================================
+     * SEÇÃO: LÓGICA DE SENSORES (Original)
+     * =================================================================
+     */
+    
+    let loadedSamplesData = {}; // Cache para dados de sensores
 
-    // --- 1. Obter todos os elementos DOM ---
     const selectElement = document.getElementById('sensor-select');
     const addSampleBtn = document.getElementById('add-sample-btn');
     const resetViewBtn = document.getElementById('reset-view-btn');
@@ -58,210 +74,391 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkAllBtn = document.getElementById('check-all-sensors');
     const uncheckAllBtn = document.getElementById('uncheck-all-sensors');
 
-    if (!selectElement) return; // Se não houver seção de sensor, não faz nada
+    if (selectElement) { // Só executa se a seção de sensor existir
+        addSampleBtn.addEventListener('click', handleAddSampleClick); //
+        resetViewBtn.addEventListener('click', handleResetView); //
+        checkboxesList.addEventListener('change', handleCheckboxChange); //
+        checkAllBtn.addEventListener('click', () => toggleAllCheckboxes(true)); //
+        uncheckAllBtn.addEventListener('click', () => toggleAllCheckboxes(false)); //
+    }
 
-    // --- 2. Adicionar Event Listeners Principais ---
-
-    // Listener para o botão "Adicionar"
-    addSampleBtn.addEventListener('click', handleAddSampleClick);
-    
-    // Listener para o botão "Limpar Tudo"
-    resetViewBtn.addEventListener('click', handleResetView);
-
-    // Listener para cliques nos Checkboxes (usando delegação de evento)
-    checkboxesList.addEventListener('change', handleCheckboxChange);
-
-    // Listeners para botões "Marcar/Desmarcar Todos"
-    checkAllBtn.addEventListener('click', () => toggleAllCheckboxes(true));
-    uncheckAllBtn.addEventListener('click', () => toggleAllCheckboxes(false));
-
-
-    // --- 3. Funções de Manipulação de Eventos ---
-
-    /**
-     * Disparado quando o usuário clica em "Adicionar"
-     */
     function handleAddSampleClick() {
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        const selectedOption = selectElement.options[selectElement.selectedIndex]; //
         if (!selectedOption || !selectedOption.value) return;
-
-        const jsonPath = selectedOption.value;
-        const sampleName = selectedOption.textContent;
-
-        // Não recarrega se já foi carregado
-        if (loadedSamplesData[jsonPath]) {
+        const jsonPath = selectedOption.value; //
+        const sampleName = selectedOption.textContent; //
+        if (loadedSamplesData[jsonPath]) { //
             alert("Esta amostra já foi adicionada.");
             return;
         }
-
-        // Resetar a UI para o estado "carregando"
-        placeholder.style.display = 'none';
-        spinner.classList.remove('d-none');
-        spinner.classList.add('d-flex');
+        placeholder.style.display = 'none'; //
+        spinner.classList.remove('d-none'); //
+        spinner.classList.add('d-flex'); //
         
-        // Buscar os novos dados
-        fetch(jsonPath)
+        fetch(jsonPath) //
             .then(response => {
                 if (!response.ok) throw new Error(`Falha ao carregar ${jsonPath}`);
                 return response.json();
             })
             .then(chartsData => {
-                // Armazena os dados
-                loadedSamplesData[jsonPath] = { name: sampleName, data: chartsData };
-                
-                // Esconde o spinner
-                spinner.classList.add('d-none');
-                spinner.classList.remove('d-flex');
-                
-                // Constrói a UI de checkboxes (APENAS para a nova amostra)
-                populateSensorCheckboxes(jsonPath, sampleName, chartsData);
-                
-                // Mostra o container de checkboxes
-                checkboxesContainer.style.display = 'block';
-
-                // Renderiza os gráficos (com base nos checkboxes)
-                renderSelectedCharts();
+                loadedSamplesData[jsonPath] = { name: sampleName, data: chartsData }; //
+                spinner.classList.add('d-none'); //
+                spinner.classList.remove('d-flex'); //
+                populateSensorCheckboxes(jsonPath, sampleName, chartsData); //
+                checkboxesContainer.style.display = 'block'; //
+                renderSelectedCharts(); //
             })
-            .catch(handleFetchError);
+            .catch(handleFetchError); //
     }
 
-    /**
-     * Limpa toda a visualização, dados carregados e checkboxes
-     */
     function handleResetView() {
-        loadedSamplesData = {};
-        chartsContainer.innerHTML = '';
-        checkboxesList.innerHTML = '';
-        checkboxesContainer.style.display = 'none';
-        placeholder.style.display = 'block';
-        selectElement.value = '';
+        loadedSamplesData = {}; //
+        chartsContainer.innerHTML = ''; //
+        checkboxesList.innerHTML = ''; //
+        checkboxesContainer.style.display = 'none'; //
+        placeholder.style.display = 'block'; //
+        selectElement.value = ''; //
     }
 
-
-    /**
-     * Disparado quando qualquer checkbox na lista é marcado/desmarcado
-     */
     function handleCheckboxChange(event) {
-        // Apenas re-renderiza se o clique foi em um checkbox de sensor
-        if (event.target.classList.contains('sensor-toggle-checkbox')) {
-            renderSelectedCharts();
+        if (event.target.classList.contains('sensor-toggle-checkbox')) { //
+            renderSelectedCharts(); //
         }
     }
 
-    /**
-     * ADICIONA checkboxes de uma nova amostra à lista
-     */
     function populateSensorCheckboxes(jsonPath, sampleName, chartsData) {
-        if (chartsData.length === 0) {
+        if (chartsData.length === 0) { //
             checkboxesList.innerHTML += `<p class="text-muted">Nenhum sensor encontrado na amostra ${sampleName}.</p>`;
             return;
         }
-
-        const sampleGroup = document.createElement('div');
-        sampleGroup.className = 'sample-checkbox-group mb-2 p-2 border rounded';
-        
-        let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`;
-
+        const sampleGroup = document.createElement('div'); //
+        sampleGroup.className = 'sample-checkbox-group mb-2 p-2 border rounded'; //
+        let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`; //
         chartsData.forEach((chart, index) => {
-            // Título limpo (ex: "acelerometro")
-            const title = chart.layout.title ? chart.layout.title.replace(/<b>Sensor:<\/b>\s*/i, '') : `Sensor ${index + 1}`;
-            const chartId = chart.chart_id;
-
+            const title = chart.layout.title ? chart.layout.title.replace(/<b>Sensor:<\/b>\s*/i, '') : `Sensor ${index + 1}`; //
+            const chartId = chart.chart_id; //
             groupHTML += `
                 <div class="form-check form-check-inline">
                     <input class="form-check-input sensor-toggle-checkbox" 
-                           type="checkbox" 
-                           value="${chartId}" 
-                           id="chk-${chartId}"
-                           data-sample-path="${jsonPath}"
-                           data-sensor-name="${title}"> 
-                    <label class="form-check-label" for="chk-${chartId}">
-                        ${title}
-                    </label>
-                </div>
-            `;
+                           type="checkbox" value="${chartId}" id="chk-${chartId}"
+                           data-sample-path="${jsonPath}" data-sensor-name="${title}"> 
+                    <label class="form-check-label" for="chk-${chartId}">${title}</label>
+                </div>`; //
         });
-
-        sampleGroup.innerHTML = groupHTML;
-        checkboxesList.appendChild(sampleGroup);
+        sampleGroup.innerHTML = groupHTML; //
+        checkboxesList.appendChild(sampleGroup); //
     }
 
-    /**
-     * =================================================================
-     * FUNÇÃO ATUALIZADA (LÓGICA CORRETA)
-     * =================================================================
-     * Desenha um gráfico para CADA checkbox selecionado, sem agrupar.
-     * Adiciona o nome da amostra ao TÍTULO do gráfico.
-     */
     function renderSelectedCharts() {
-        chartsContainer.innerHTML = ''; // Limpa gráficos antigos
-
-        // Pega todos os checkboxes que estão MARCADOS
-        const checkedBoxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox:checked');
-
+        chartsContainer.innerHTML = ''; //
+        const checkedBoxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox:checked'); //
         if (checkedBoxes.length === 0) {
             chartsContainer.innerHTML = '<p class="text-center text-muted fs-5">Nenhum sensor selecionado para exibição.</p>';
             return;
         }
-
-        // Itera sobre CADA checkbox marcado individualmente
         checkedBoxes.forEach(checkbox => {
-            const chartId = checkbox.value;
-            const samplePath = checkbox.dataset.samplePath; 
-
-            // 1. Encontra os dados da amostra correta
-            const sample = loadedSamplesData[samplePath];
+            const chartId = checkbox.value; //
+            const samplePath = checkbox.dataset.samplePath;  //
+            const sample = loadedSamplesData[samplePath]; //
             if (!sample) return; 
-
-            // 2. Encontra os dados do gráfico específico dentro da amostra
-            const chartData = sample.data.find(c => c.chart_id === chartId);
-
+            const chartData = sample.data.find(c => c.chart_id === chartId); //
             if (chartData) {
-                // 3. Prepara o DIV
-                const chartDiv = document.createElement('div');
-                // Usamos o chartId original, que é único por amostra/sensor
-                chartDiv.id = chartData.chart_id; 
-                chartDiv.className = 'col-12 col-lg-6 mb-4'; // Ocupa metade da tela
+                const chartDiv = document.createElement('div'); //
+                chartDiv.id = chartData.chart_id;  //
+                chartDiv.className = 'col-12 col-lg-6 mb-4 plotly-chart';  //
                 chartDiv.style.width = '100%';
                 chartDiv.style.height = '450px';
-                
-                chartsContainer.appendChild(chartDiv);
+                chartsContainer.appendChild(chartDiv); //
+                const newLayout = { ...chartData.layout }; //
+                const originalTitle = newLayout.title || 'Sensor'; //
+                const sampleName = sample.name; //
+                newLayout.title = `${originalTitle}<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleName}</span>`; //
+                Plotly.newPlot(chartDiv, chartData.data, newLayout, { responsive: true }); //
+            }
+        });
+    }
 
-                // 4. Prepara o Layout (Adicionando subtítulo)
-                const newLayout = { ...chartData.layout }; // Copia layout original
-                const originalTitle = newLayout.title || 'Sensor';
-                const sampleName = sample.name;
+    function toggleAllCheckboxes(checkedState) {
+        const checkboxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox'); //
+        checkboxes.forEach(chk => {
+            chk.checked = checkedState; //
+        });
+        renderSelectedCharts(); //
+    }
 
-                // Adiciona o nome da amostra como subtítulo
-                newLayout.title = `${originalTitle}<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleName}</span>`;
+    function handleFetchError(error) {
+        console.error('Erro ao carregar dados do sensor:', error); //
+        spinner.classList.add('d-none'); //
+        spinner.classList.remove('d-flex'); //
+        chartsContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`; //
+    }
 
-                // 5. Plota o gráfico
-                // Usa chartData.data (os traces originais "x", "y", "z")
-                // A legenda ficará limpa, como pedido.
-                Plotly.newPlot(chartDiv, chartData.data, newLayout, { responsive: true });
+
+    /**
+     * =================================================================
+     * SEÇÃO: LÓGICA DE WI-FI (Nova)
+     * =================================================================
+     */
+
+    let loadedWifiData = {}; // Cache para dados de Wi-Fi
+
+    const wifiSelect = document.getElementById('wifi-select');
+    const addWifiBtn = document.getElementById('add-wifi-sample-btn');
+    const resetWifiBtn = document.getElementById('reset-wifi-view-btn');
+    
+    const wifiControlsContainer = document.getElementById('wifi-controls-container');
+    const wifiControlsList = document.getElementById('wifi-controls-list');
+    const wifiMapContainer = document.getElementById('wifi-map-container');
+    const wifiSpinner = document.getElementById('wifi-map-spinner');
+    const wifiPlaceholder = document.getElementById('wifi-map-placeholder');
+    
+    if (wifiSelect) { // Só executa se a seção de Wi-Fi existir
+        
+        addWifiBtn.addEventListener('click', handleAddWifiSample); //
+        resetWifiBtn.addEventListener('click', handleResetWifiView); //
+        
+        // Listener para botões dinâmicos (plotar)
+        wifiControlsList.addEventListener('click', handleWifiControlClick); //
+        
+        // Listener para as barras de pesquisa (keyup)
+        wifiControlsList.addEventListener('keyup', handleWifiSearch);
+    }
+
+    /**
+     * Filtra a lista de SSIDs com base no que foi digitado
+     */
+    function handleWifiSearch(event) {
+        // Só executa se o evento veio de uma barra de pesquisa
+        if (!event.target.classList.contains('wifi-search-bar')) return;
+
+        const input = event.target;
+        const filterText = input.value.toLowerCase();
+        const listId = input.dataset.listId;
+        const listElement = document.getElementById(listId);
+
+        if (!listElement) return;
+
+        const items = listElement.querySelectorAll('.wifi-ssid-item');
+        
+        items.forEach(item => {
+            const ssidName = item.dataset.ssidName;
+            if (ssidName.includes(filterText)) {
+                item.style.display = 'block'; // Mostra o item
+            } else {
+                item.style.display = 'none'; // Esconde o item
             }
         });
     }
 
     /**
-     * Marca ou desmarca todos os checkboxes e re-renderiza
+     * Carrega o JSON de Wi-Fi para uma amostra
      */
-    function toggleAllCheckboxes(checkedState) {
-        const checkboxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox');
-        checkboxes.forEach(chk => {
-            chk.checked = checkedState;
-        });
-        renderSelectedCharts();
+    function handleAddWifiSample() {
+        const selectedOption = wifiSelect.options[wifiSelect.selectedIndex]; //
+        if (!selectedOption || !selectedOption.value) return;
+
+        const jsonPath = selectedOption.value; //
+        const sampleName = selectedOption.textContent; //
+
+        if (loadedWifiData[jsonPath]) { //
+            alert("Esta amostra já foi adicionada.");
+            return;
+        }
+
+        wifiPlaceholder.style.display = 'none'; //
+        wifiSpinner.classList.remove('d-none'); //
+        wifiSpinner.classList.add('d-flex'); //
+        
+        fetch(jsonPath) //
+            .then(response => {
+                if (!response.ok) throw new Error(`Falha ao carregar ${jsonPath}`);
+                return response.json();
+            })
+            .then(wifiData => {
+                // Armazena dados no cache
+                loadedWifiData[jsonPath] = { name: sampleName, data: wifiData }; //
+                
+                wifiSpinner.classList.add('d-none'); //
+                wifiSpinner.classList.remove('d-flex'); //
+                
+                // Cria os botões de controle (ex: Plotar "eduroam" 2.4Ghz)
+                populateWifiControls(jsonPath, sampleName, wifiData); //
+                
+                wifiControlsContainer.style.display = 'block'; //
+            })
+            .catch(err => {
+                console.error("Erro ao carregar dados Wi-Fi:", err);
+                wifiSpinner.classList.add('d-none'); //
+                wifiMapContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`; //
+            });
     }
 
     /**
-     * Função para tratar erros do fetch
+     * Limpa a visualização de Wi-Fi
      */
-    function handleFetchError(error) {
-        console.error('Erro ao carregar dados do sensor:', error);
-        spinner.classList.add('d-none');
-        spinner.classList.remove('d-flex');
-        chartsContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
+    function handleResetWifiView() {
+        loadedWifiData = {}; //
+        activeMaps = {}; // Limpa o cache de mapas
+        wifiControlsList.innerHTML = ''; //
+        wifiMapContainer.innerHTML = ''; // Limpa mapas
+        wifiControlsContainer.style.display = 'none'; //
+        wifiMapContainer.appendChild(wifiPlaceholder); // Restaura o placeholder
+        wifiPlaceholder.style.display = 'block'; //
+        wifiSelect.value = ''; //
+    }
+/**
+     * Cria os botões de plotagem E A BARRA DE PESQUISA para cada SSID/Banda.
+     */
+    function populateWifiControls(jsonPath, sampleName, wifiData) {
+        // wifiData tem o formato: {'SSID_Name': {'2.4GHz': [[...]], '5GHz': [[...]]}, ...}
+        const ssids = Object.keys(wifiData); //
+        
+        const sampleGroupId = `wifi-group-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+        const sampleGroup = document.createElement('div'); //
+        sampleGroup.className = 'sample-wifi-group mb-3 p-2 border rounded'; //
+        
+        // --- INÍCIO DA MODIFICAÇÃO ---
+        
+        // ID único para a lista de SSIDs desta amostra
+        const listId = `wifi-list-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+        let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`;
+        
+        // 1. Adiciona a barra de pesquisa
+        groupHTML += `
+            <input type="text" 
+                   class="form-control form-control-sm mb-2 wifi-search-bar" 
+                   placeholder="Filtrar SSIDs..."
+                   aria-label="Filtrar SSIDs para ${sampleName}"
+                   data-list-id="${listId}"> 
+        `; // O 'data-list-id' diz ao input qual lista ele deve filtrar
+
+        // 2. Adiciona a div que conterá a lista filtrável
+        groupHTML += `<div id="${listId}" class="wifi-ssid-list" style="max-height: 250px; overflow-y: auto;">`;
+
+        if (ssids.length === 0) { //
+            groupHTML += `<p class="text-muted">Nenhum SSID encontrado na amostra ${sampleName}.</p>`;
+        } else {
+            ssids.sort().forEach(ssid => {
+                const bands = Object.keys(wifiData[ssid]); //
+                
+                // 'wifi-ssid-item' é o contêiner que será mostrado/escondido
+                groupHTML += `<div class="mb-2 wifi-ssid-item" data-ssid-name="${ssid.toLowerCase()}">
+                                <span class="fw-bold">${ssid}</span>: `; //
+                
+                bands.forEach(band => {
+                    const mapId = `map-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}-${ssid.replace(/[^a-zA-Z0-9]/g, '_')}-${band}`; //
+                    
+                    groupHTML += `
+                        <button class="btn btn-sm btn-outline-primary plot-wifi-btn"
+                                data-json-path="${jsonPath}"
+                                data-ssid="${ssid}"
+                                data-band="${band}"
+                                data-map-id="${mapId}">
+                            Plotar ${band}
+                        </button>
+                    `; //
+                });
+                groupHTML += `</div>`; // Fim de wifi-ssid-item
+            });
+        }
+        
+        groupHTML += `</div>`; // Fim da div da lista
+        
+        // --- FIM DA MODIFICAÇÃO ---
+
+        sampleGroup.innerHTML = groupHTML; //
+        wifiControlsList.appendChild(sampleGroup); //
+    }
+
+    /**
+     * Lida com o clique em um botão "Plotar"
+     */
+    function handleWifiControlClick(event) {
+        if (!event.target.classList.contains('plot-wifi-btn')) return; //
+
+        const button = event.target; //
+        const { jsonPath, ssid, band, mapId } = button.dataset; //
+
+        // Se o mapa já existe, não faz nada (ou podemos focar nele)
+        if (activeMaps[mapId]) { //
+            document.getElementById(mapId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        // 1. Pega os dados do cache
+        const sampleData = loadedWifiData[jsonPath]; //
+        if (!sampleData) return;
+        const heatData = sampleData.data[ssid][band]; // Formato: [[lat, lon, level], ...]
+        if (!heatData || heatData.length === 0) { //
+            alert(`Nenhum dado encontrado para ${ssid} (${band}).`);
+            return;
+        }
+        
+        // 2. Cria os contêineres do mapa
+        const mapWrapper = document.createElement('div'); //
+        mapWrapper.id = mapId; //
+        mapWrapper.className = 'col-12 col-lg-6 mb-4'; // Metade da tela
+        
+        const title = document.createElement('h5'); //
+        title.className = 'text-center'; //
+        title.innerHTML = `${ssid} (${band})<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleData.name}</span>`; //
+        
+        const mapInnerDiv = document.createElement('div'); //
+        mapInnerDiv.className = 'leaflet-map-container'; //
+        mapInnerDiv.setAttribute('data-map-id', mapId); // Referência para o showSection
+
+        mapWrapper.appendChild(title); //
+        mapWrapper.appendChild(mapInnerDiv); //
+        wifiMapContainer.appendChild(mapWrapper); //
+
+        // --- 3. Lógica de Plotagem (recriando plot_map de wifi-zones.ipynb) ---
+        
+        // 3a. Calcular centro e normalizar dados
+        let centerLat = 0;
+        let centerLon = 0;
+        const levels = heatData.map(p => p[2]); // Pega todos os 'level'
+        const minLevel = Math.min(...levels); // ex: -90
+        const maxLevel = Math.max(...levels); // ex: -50
+        const range = maxLevel - minLevel; //
+
+        const normalizedHeatData = heatData.map(point => {
+            const [lat, lon, level] = point;
+            centerLat += lat;
+            centerLon += lon;
+            
+            // Normaliza a intensidade (level) de 0.0 a 1.0
+            // Leaflet.heat espera 'intensity' entre 0.0 (frio) e 1.0 (quente)
+            let intensity = 0.5; // Caso padrão se houver só 1 ponto
+            if (range > 0) {
+                intensity = (level - minLevel) / range; //
+            }
+            return [lat, lon, intensity]; //
+        });
+        centerLat /= heatData.length; //
+        centerLon /= heatData.length; //
+
+        // 3b. Criar o mapa Leaflet
+        const map = L.map(mapInnerDiv).setView([centerLat, centerLon], 18); //
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map); //
+
+        // 3c. Adicionar o HeatMap (replicando folium.plugins.HeatMap)
+        L.heatLayer(normalizedHeatData, {
+            radius: 15, //
+            blur: 10,   //
+        }).addTo(map); //
+
+        // 4. Salva a instância do mapa no cache global
+        activeMaps[mapId] = map; //
+
+        // === INÍCIO DA CORREÇÃO ===
+        // 5. Força o mapa a redimensionar
+        // Isso corrige o bug onde o mapa não aparece na primeira renderização
+        setTimeout(() => map.invalidateSize(), 10);
+        // === FIM DA CORREÇÃO ===
     }
 
 });
