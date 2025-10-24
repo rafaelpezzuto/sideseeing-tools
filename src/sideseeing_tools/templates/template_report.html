@@ -11,9 +11,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-</head>
+    </head>
 <body>
     <div class="sidebar">
+        <h4 class="px-3">Relatório de Dados</h4>
+        <hr>
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link active" href="#" onclick="showSection('summary')">Resumo</a>
@@ -33,8 +35,8 @@
             {% if sections.images %}
             {% endif %}
         </ul>
-        <div class="sidebar-footer">
-            Gerado em: {{ data_geracao }}
+        <div class="position-absolute bottom-0 w-100 p-3">
+             <small class="text-muted">Gerado em: {{ data_geracao }}</small>
         </div>
     </div>
 
@@ -122,7 +124,7 @@
         {% if sections.sensor %}
         <div id="sensor" class="section">
             <h2>Dados de Sensores</h2>
-            <p>Adicione uma ou mais amostras para comparar os dados dos sensores. Os dados são carregados sob demanda (lazy loading).</p>
+            <p>Adicione uma ou mais amostras para comparar os dados dos sensores.</p>
             
             <div class="row mb-3 align-items-end">
                 <div class="col-md-6">
@@ -169,7 +171,7 @@
         {% if sections.wifi %}
         <div id="wifi" class="section">
             <h2>Mapas de Calor de Wi-Fi</h2>
-            <p>Adicione uma amostra para visualizar os heatmaps dos SSIDs encontrados. Os dados são baseados na lógica de `merge_asof` e agregados por média de sinal.</p>
+            <p>Adicione uma amostra para visualizar os heatmaps dos SSIDs encontrados.</p>
             
             <div class="row mb-3 align-items-end">
                 <div class="col-md-6">

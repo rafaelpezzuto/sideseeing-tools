@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * =================================================================
-     * SEÇÃO: LÓGICA DE WI-FI (Nova)
+     * SEÇÃO: LÓGICA DE WI-FI (MODIFICADA)
      * =================================================================
      */
 
@@ -217,34 +217,111 @@ document.addEventListener('DOMContentLoaded', function() {
         addWifiBtn.addEventListener('click', handleAddWifiSample); //
         resetWifiBtn.addEventListener('click', handleResetWifiView); //
         
-        // Listener para botões dinâmicos (plotar)
-        wifiControlsList.addEventListener('click', handleWifiControlClick); //
+        // --- MODIFICADO ---
+        // Um listener de clique para tratar todos os botões (Plotar, Mostrar Todos, Esconder Todos)
+        wifiControlsList.addEventListener('click', handleWifiGlobalClick); //
         
         // Listener para as barras de pesquisa (keyup)
-        wifiControlsList.addEventListener('keyup', handleWifiSearch);
+        wifiControlsList.addEventListener('keyup', handleWifiSearch); //
     }
 
     /**
-     * Filtra a lista de SSIDs com base no que foi digitado
+     * NOVO: Listener de clique global para a área de controles de Wi-Fi.
+     * Delega a ação para a função correta.
+     */
+    function handleWifiGlobalClick(event) {
+        const target = event.target;
+        
+        // Se clicou no botão "Plotar"
+        if (target.classList.contains('plot-wifi-btn')) { //
+            handleWifiControlClick(target); // Chama a função de plotar
+        }
+        // Se clicou no botão "Mostrar Todos"
+        else if (target.classList.contains('wifi-show-all-btn')) { //
+            handleShowAllWifi(target); // Chama a nova função de mostrar tudo
+        }
+        // --- INÍCIO DA MODIFICAÇÃO ---
+        // Se clicou no botão "Esconder Todos"
+        else if (target.classList.contains('wifi-hide-all-btn')) {
+            handleHideAllWifi(target); // Chama a nova função de esconder
+        }
+        // --- FIM DA MODIFICAÇÃO ---
+    }
+
+    /**
+     * NOVO: Mostra todos os SSIDs para uma determinada amostra.
+     */
+    function handleShowAllWifi(button) {
+        const listId = button.dataset.listId; //
+        const listElement = document.getElementById(listId);
+        if (!listElement) return;
+
+        const items = listElement.querySelectorAll('.wifi-ssid-item'); //
+        items.forEach(item => {
+            item.style.display = 'block'; // Força a exibição de todos
+        });
+    }
+
+    /**
+     * --- INÍCIO DA MODIFICAÇÃO ---
+     * NOVO: Esconde todos os SSIDs e limpa a pesquisa.
+     */
+    function handleHideAllWifi(button) {
+        const listId = button.dataset.listId;
+        const listElement = document.getElementById(listId);
+        if (!listElement) return;
+
+        // 1. Esconde todos os itens
+        const items = listElement.querySelectorAll('.wifi-ssid-item');
+        items.forEach(item => {
+            item.style.display = 'none'; // Esconde
+        });
+
+        // 2. Limpa o campo de pesquisa associado
+        // O campo de pesquisa está no mesmo 'sampleGroup' (elemento pai)
+        const sampleGroup = button.closest('.sample-wifi-group'); //
+        if (sampleGroup) {
+            const searchBar = sampleGroup.querySelector('.wifi-search-bar'); //
+            if (searchBar) {
+                searchBar.value = '';
+            }
+        }
+    }
+    /**
+     * --- FIM DA MODIFICAÇÃO ---
+     */
+
+
+    /**
+     * MODIFICADO: Filtra a lista de SSIDs E esconde se a busca estiver vazia.
      */
     function handleWifiSearch(event) {
         // Só executa se o evento veio de uma barra de pesquisa
-        if (!event.target.classList.contains('wifi-search-bar')) return;
+        if (!event.target.classList.contains('wifi-search-bar')) return; //
 
         const input = event.target;
-        const filterText = input.value.toLowerCase();
-        const listId = input.dataset.listId;
+        const filterText = input.value.toLowerCase(); //
+        const listId = input.dataset.listId; //
         const listElement = document.getElementById(listId);
 
         if (!listElement) return;
 
-        const items = listElement.querySelectorAll('.wifi-ssid-item');
+        const items = listElement.querySelectorAll('.wifi-ssid-item'); //
         
         items.forEach(item => {
-            const ssidName = item.dataset.ssidName;
-            if (ssidName.includes(filterText)) {
+            const ssidName = item.dataset.ssidName; //
+
+            // --- LÓGICA MODIFICADA ---
+            // 1. Se a barra de pesquisa estiver vazia, esconde o item
+            if (filterText === "") { //
+                item.style.display = 'none'; //
+            } 
+            // 2. Se não estiver vazia E der match, mostra
+            else if (ssidName.includes(filterText)) { //
                 item.style.display = 'block'; // Mostra o item
-            } else {
+            } 
+            // 3. Se não der match, esconde
+            else {
                 item.style.display = 'none'; // Esconde o item
             }
         });
@@ -306,22 +383,22 @@ document.addEventListener('DOMContentLoaded', function() {
         wifiPlaceholder.style.display = 'block'; //
         wifiSelect.value = ''; //
     }
-/**
-     * Cria os botões de plotagem E A BARRA DE PESQUISA para cada SSID/Banda.
+
+    /**
+     * --- INÍCIO DA MODIFICAÇÃO ---
+     * MODIFICADO: Cria botões, barra de pesquisa, e layout de GRIDE.
      */
     function populateWifiControls(jsonPath, sampleName, wifiData) {
         // wifiData tem o formato: {'SSID_Name': {'2.4GHz': [[...]], '5GHz': [[...]]}, ...}
         const ssids = Object.keys(wifiData); //
         
-        const sampleGroupId = `wifi-group-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const sampleGroupId = `wifi-group-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
 
         const sampleGroup = document.createElement('div'); //
         sampleGroup.className = 'sample-wifi-group mb-3 p-2 border rounded'; //
         
-        // --- INÍCIO DA MODIFICAÇÃO ---
-        
         // ID único para a lista de SSIDs desta amostra
-        const listId = `wifi-list-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const listId = `wifi-list-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
 
         let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`;
         
@@ -329,13 +406,26 @@ document.addEventListener('DOMContentLoaded', function() {
         groupHTML += `
             <input type="text" 
                    class="form-control form-control-sm mb-2 wifi-search-bar" 
-                   placeholder="Filtrar SSIDs..."
+                   placeholder="Digite para filtrar SSIDs..."
                    aria-label="Filtrar SSIDs para ${sampleName}"
                    data-list-id="${listId}"> 
         `; // O 'data-list-id' diz ao input qual lista ele deve filtrar
 
-        // 2. Adiciona a div que conterá a lista filtrável
-        groupHTML += `<div id="${listId}" class="wifi-ssid-list" style="max-height: 250px; overflow-y: auto;">`;
+        // 2. Adiciona os botões "Mostrar Todos" e "Esconder Todos"
+        groupHTML += `
+            <button class="btn btn-sm btn-outline-secondary mb-2 wifi-show-all-btn"
+                    data-list-id="${listId}">
+                Mostrar Todos
+            </button>
+            <button class="btn btn-sm btn-outline-secondary mb-2 wifi-hide-all-btn"
+                    data-list-id="${listId}">
+                Esconder Todos
+            </button>
+        `;
+
+        // 3. Adiciona a div que conterá a lista (AGORA COM A CLASSE DO GRID)
+        //
+        groupHTML += `<div id="${listId}" class="wifi-ssid-list-grid" style="max-height: 250px; overflow-y: auto;">`;
 
         if (ssids.length === 0) { //
             groupHTML += `<p class="text-muted">Nenhum SSID encontrado na amostra ${sampleName}.</p>`;
@@ -343,12 +433,12 @@ document.addEventListener('DOMContentLoaded', function() {
             ssids.sort().forEach(ssid => {
                 const bands = Object.keys(wifiData[ssid]); //
                 
-                // 'wifi-ssid-item' é o contêiner que será mostrado/escondido
-                groupHTML += `<div class="mb-2 wifi-ssid-item" data-ssid-name="${ssid.toLowerCase()}">
+                // 4. 'wifi-ssid-item' é o contêiner E COMEÇA ESCONDIDO (display: none)
+                groupHTML += `<div class="mb-2 wifi-ssid-item" data-ssid-name="${ssid.toLowerCase()}" style="display: none;">
                                 <span class="fw-bold">${ssid}</span>: `; //
                 
                 bands.forEach(band => {
-                    const mapId = `map-${sampleName.replace(/[^a-zA-Z0-9]/g, '_')}-${ssid.replace(/[^a-zA-Z0-9]/g, '_')}-${band}`; //
+                    const mapId = `map-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}-${ssid.replace(/[^a-zA-Z0.9]/g, '_')}-${band}`; //
                     
                     groupHTML += `
                         <button class="btn btn-sm btn-outline-primary plot-wifi-btn"
@@ -371,14 +461,17 @@ document.addEventListener('DOMContentLoaded', function() {
         sampleGroup.innerHTML = groupHTML; //
         wifiControlsList.appendChild(sampleGroup); //
     }
+    /**
+     * --- FIM DA MODIFICAÇÃO ---
+     */
+
 
     /**
-     * Lida com o clique em um botão "Plotar"
+     * Lida com o clique em um botão "Plotar" (NÃO MODIFICADO, AGORA CHAMADO PELO 'handleWifiGlobalClick')
      */
-    function handleWifiControlClick(event) {
-        if (!event.target.classList.contains('plot-wifi-btn')) return; //
-
-        const button = event.target; //
+    function handleWifiControlClick(button) {
+        // Esta função só é chamada se o target for 'plot-wifi-btn'
+        // const button = event.target; //
         const { jsonPath, ssid, band, mapId } = button.dataset; //
 
         // Se o mapa já existe, não faz nada (ou podemos focar nele)
@@ -441,9 +534,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 3b. Criar o mapa Leaflet
         const map = L.map(mapInnerDiv).setView([centerLat, centerLon], 18); //
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map); //
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxNativeZoom: 19, // Define o zoom máximo dos tiles do provedor
+            maxZoom: 22        // Define o zoom máximo permitido no mapa (over-zoom)
+        }).addTo(map);
 
         // 3c. Adicionar o HeatMap (replicando folium.plugins.HeatMap)
         L.heatLayer(normalizedHeatData, {
@@ -454,11 +550,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // 4. Salva a instância do mapa no cache global
         activeMaps[mapId] = map; //
 
-        // === INÍCIO DA CORREÇÃO ===
         // 5. Força o mapa a redimensionar
-        // Isso corrige o bug onde o mapa não aparece na primeira renderização
         setTimeout(() => map.invalidateSize(), 10);
-        // === FIM DA CORREÇÃO ===
     }
 
 });
