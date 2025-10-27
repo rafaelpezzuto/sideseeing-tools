@@ -21,6 +21,9 @@
                 <a class="nav-link active" href="#" onclick="showSection('summary')">Resumo</a>
             </li>
             {% if sections.geo %}
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showSection('geo')">Dados Geoespaciais</a>
+            </li>
             {% endif %}
             {% if sections.sensor %}
             <li class="nav-item">
@@ -118,6 +121,37 @@
         {% if sections.geo %}
         <div id="geo" class="section">
             <h2>Dados Geoespaciais</h2>
+            <p>Adicione uma amostra para visualizar a rota GPS capturada.</p>
+            
+            <div class="row mb-3 align-items-end">
+                <div class="col-md-6">
+                    <label for="geo-select" class="form-label"><strong>1. Selecionar Amostra:</strong></label>
+                    <select class="form-select" id="geo-select">
+                        <option selected disabled value="">-- Escolha uma amostra para adicionar --</option>
+                        {% for instance_name, json_path in sections.geo.items() %}
+                            <option value="{{ json_path }}">{{ instance_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" id="add-geo-sample-btn">Adicionar Rota</button>
+                    <button class="btn btn-danger" id="reset-geo-view-btn">Limpar Tudo</button>
+                </div>
+            </div>
+        
+            <div id="geo-map-container" class="mt-4 row">
+                
+                <div class="text-center text-muted" id="geo-map-placeholder">
+                    <p class="fs-5">Adicione uma amostra para começar.</p>
+                </div>
+
+                <div class="loading-spinner d-none justify-content-center p-5" id="geo-map-spinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Carregando dados...</span>
+                    </div>
+                </div>
+
+            </div>
         </div>
         {% endif %}
 

@@ -668,4 +668,170 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => map.invalidateSize(), 10);
     }
 
+
+    /**
+     * =================================================================
+     * SEÇÃO: LÓGICA GEOESPACIAL (GPS)
+     * =================================================================
+     */
+
+    // Cache para armazenar os dados JSON das amostras GEO já carregadas
+    let loadedGeoData = {};
+
+    /** ----------------------------------
+     * DOM Elements (Geo)
+     * ---------------------------------- */
+    const geoSelect = document.getElementById('geo-select');
+    const addGeoBtn = document.getElementById('add-geo-sample-btn');
+    const resetGeoBtn = document.getElementById('reset-geo-view-btn');
+    const geoMapContainer = document.getElementById('geo-map-container');
+    const geoSpinner = document.getElementById('geo-map-spinner');
+    const geoPlaceholder = document.getElementById('geo-map-placeholder');
+
+    // Só adiciona os listeners se os elementos da seção GEO existirem
+    if (geoSelect) {
+        /** ----------------------------------
+         * Event Listeners (Geo)
+         * ---------------------------------- */
+        addGeoBtn.addEventListener('click', handleAddGeoSample);
+        resetGeoBtn.addEventListener('click', handleResetGeoView);
+    }
+
+    /**
+     * Manipula o clique no botão "Adicionar Rota" (Geo).
+     * Carrega o arquivo JSON da amostra selecionada, armazena em cache,
+     * e chama a função para renderizar o mapa da rota.
+     */
+    function handleAddGeoSample() {
+        const selectedOption = geoSelect.options[geoSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
+
+        const jsonPath = selectedOption.value;
+        const sampleName = selectedOption.textContent;
+
+        if (loadedGeoData[jsonPath]) {
+            alert("Esta rota já foi adicionada.");
+            // Rola a tela até o mapa existente
+            const mapId = `map-geo-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
+            const mapElement = document.getElementById(mapId);
+            if (mapElement) {
+                mapElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        geoPlaceholder.style.display = 'none';
+        geoSpinner.classList.remove('d-none');
+        geoSpinner.classList.add('d-flex');
+
+        fetch(jsonPath)
+            .then(response => {
+                if (!response.ok) throw new Error(`Falha ao carregar ${jsonPath}`);
+                return response.json();
+            })
+            .then(geoData => {
+                // Armazena dados no cache
+                loadedGeoData[jsonPath] = { name: sampleName, data: geoData };
+                
+                geoSpinner.classList.add('d-none');
+                geoSpinner.classList.remove('d-flex');
+                
+                // Renderiza o mapa para esta rota
+                renderGeoMap(jsonPath, sampleName, geoData);
+            })
+            .catch(err => {
+                console.error("Erro ao carregar dados GEO:", err);
+                geoSpinner.classList.add('d-none');
+                geoMapContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
+            });
+    }
+
+    /**
+     * Limpa a visualização de Geo.
+     * Reseta caches, limpa os mapas e restaura o placeholder.
+     */
+    function handleResetGeoView() {
+        loadedGeoData = {};
+        // activeMaps é global, precisamos limpar apenas os mapas GEO
+        // Vamos iterar e remover do cache global
+        Object.keys(activeMaps).forEach(mapId => {
+            if (mapId.startsWith('map-geo-')) {
+                delete activeMaps[mapId];
+            }
+        });
+        
+        geoMapContainer.innerHTML = ''; // Limpa os mapas renderizados
+        
+        // Recoloca o placeholder dentro do contêiner de mapas
+        geoMapContainer.appendChild(geoPlaceholder);
+        geoPlaceholder.style.display = 'block';
+        geoSelect.value = '';
+    }
+
+    /**
+     * Renderiza um novo mapa Leaflet para a rota GPS.
+     *
+     * @param {string} jsonPath - O caminho para o JSON (ID do cache).
+     * @param {string} sampleName - O nome da amostra (para o título).
+     * @param {Object} geoData - Os dados GEO (formato: {'center': [...], 'path': [[...]]})
+     */
+    function renderGeoMap(jsonPath, sampleName, geoData) {
+        const { center, path } = geoData;
+
+        if (!path || path.length === 0) {
+            alert(`Nenhum dado de rota encontrado para ${sampleName}.`);
+            return;
+        }
+
+        // ID único para o mapa
+        const mapId = `map-geo-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
+
+        // 1. Cria os contêineres do mapa (Wrapper e Div interna)
+        const mapWrapper = document.createElement('div');
+        mapWrapper.id = mapId;
+        mapWrapper.className = 'col-12 col-lg-6 mb-4'; // Layout de bootstrap
+        
+        const title = document.createElement('h5');
+        title.className = 'text-center';
+        title.innerHTML = `Rota: ${sampleName}`;
+        
+        const mapInnerDiv = document.createElement('div');
+        mapInnerDiv.className = 'leaflet-map-container'; // Usado para redimensionamento
+        mapInnerDiv.setAttribute('data-map-id', mapId);  // Link para o cache 'activeMaps'
+
+        mapWrapper.appendChild(title);
+        mapWrapper.appendChild(mapInnerDiv);
+        geoMapContainer.appendChild(mapWrapper);
+
+        // 2. Criar o mapa Leaflet
+        // Centraliza usando o ponto central calculado em Python
+        const map = L.map(mapInnerDiv).setView(center, 16); // Zoom inicial
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxNativeZoom: 19,
+            maxZoom: 22        
+        }).addTo(map);
+
+        // 3. Adicionar a Polilinha (a rota)
+        const polyline = L.polyline(path, { color: 'red' }).addTo(map);
+
+        // 4. Adicionar marcadores de Início e Fim
+        L.marker(path[0]).addTo(map)
+            .bindPopup('<b>Início da Rota</b>')
+            .openPopup();
+            
+        L.marker(path[path.length - 1]).addTo(map)
+            .bindPopup('<b>Fim da Rota</b>');
+
+        // 5. Ajustar o zoom para caber a rota inteira
+        map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
+
+        // 6. Salva a instância do mapa no cache global
+        activeMaps[mapId] = map;
+
+        // 7. Força o mapa a redimensionar
+        setTimeout(() => map.invalidateSize(), 10);
+    }
+
 }); // Fim do 'DOMContentLoaded'
