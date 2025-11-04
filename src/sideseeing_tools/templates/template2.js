@@ -399,10 +399,9 @@ document.addEventListener('DOMContentLoaded', function() {
         chartsContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
     }
 
-
-    /**
+/**
      * =================================================================
-     * SEÇÃO: LÓGICA DE WI-FI
+     * SEÇÃO: LÓGICA DE WI-FI 
      * =================================================================
      */
 
@@ -415,8 +414,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const wifiSelect = document.getElementById('wifi-select');
     const addWifiBtn = document.getElementById('add-wifi-sample-btn');
     const resetWifiBtn = document.getElementById('reset-wifi-view-btn');
-    const wifiControlsContainer = document.getElementById('wifi-controls-container');
-    const wifiControlsList = document.getElementById('wifi-controls-list');
+    
+    // Contêineres da Etapa 2 (Seleção de SSID)
+    const wifiSsidControlsContainer = document.getElementById('wifi-ssid-controls-container');
+    const wifiSsidListContainer = document.getElementById('wifi-ssid-list-container');
+    
+    // Contêineres da Etapa 3 (Seleção de Banda)
+    const wifiBandControlsContainer = document.getElementById('wifi-band-controls-container');
+    const wifiBandButtonsList = document.getElementById('wifi-band-buttons-list');
+
+    // Contêineres do Mapa
     const wifiMapContainer = document.getElementById('wifi-map-container');
     const wifiSpinner = document.getElementById('wifi-map-spinner');
     const wifiPlaceholder = document.getElementById('wifi-map-placeholder');
@@ -429,33 +436,89 @@ document.addEventListener('DOMContentLoaded', function() {
         addWifiBtn.addEventListener('click', handleAddWifiSample);
         resetWifiBtn.addEventListener('click', handleResetWifiView);
 
-        // Delegação de eventos para os controles de Wi-Fi:
-        // Um único listener 'click' trata os botões "Plotar", "Mostrar Todos" e "Esconder Todos".
-        wifiControlsList.addEventListener('click', handleWifiGlobalClick);
+        // Delegação de eventos para os controles de Wi-Fi (Etapa 2):
+        wifiSsidListContainer.addEventListener('click', handleWifiSsidListClick);
         
         // Um único listener 'keyup' trata todas as barras de pesquisa.
-        wifiControlsList.addEventListener('keyup', handleWifiSearch);
+        wifiSsidListContainer.addEventListener('keyup', handleWifiSearch);
+
+        // Delegação de eventos para os controles de Wi-Fi (Etapa 3):
+        wifiBandButtonsList.addEventListener('click', handleWifiBandListClick);
     }
 
     /**
-     * Manipulador de clique global (delegação de evento) para a lista de controles Wi-Fi.
-     * Identifica qual tipo de botão foi clicado e chama a função correspondente.
+     * Manipulador de clique global (delegação de evento) para a lista de SSIDs (Etapa 2).
+     * Identifica se o clique foi em uma caixa de SSID, "Mostrar Todos" ou "Esconder Todos".
      * @param {Event} event O objeto do evento 'click'.
      */
-    function handleWifiGlobalClick(event) {
+    function handleWifiSsidListClick(event) {
         const target = event.target;
 
-        // Se clicou no botão "Plotar [banda]"
-        if (target.classList.contains('plot-wifi-btn')) {
-            handleWifiControlClick(target);
-        }
         // Se clicou no botão "Mostrar Todos"
-        else if (target.classList.contains('wifi-show-all-btn')) {
+        if (target.classList.contains('wifi-show-all-btn')) {
             handleShowAllWifi(target);
+            return;
         }
         // Se clicou no botão "Esconder Todos"
-        else if (target.classList.contains('wifi-hide-all-btn')) {
+        if (target.classList.contains('wifi-hide-all-btn')) {
             handleHideAllWifi(target);
+            return;
+        }
+
+        // Se clicou em uma caixa de SSID (ou seu filho)
+        const ssidBox = target.closest('.ssid-selectable-box');
+        if (ssidBox) {
+            event.preventDefault(); // Impede o <a> de navegar
+            handleSsidBoxClick(ssidBox); // Chama o handler da Etapa 3
+        }
+    }
+
+    /**
+     * Manipulador de clique (delegação) para os botões de Banda (Etapa 3).
+     * @param {Event} event O objeto do evento 'click'.
+     */
+    function handleWifiBandListClick(event) {
+        const target = event.target;
+        // Se clicou no botão "Plotar [banda]"
+        if (target.classList.contains('plot-wifi-btn')) {
+            handleWifiControlClick(target); // Esta é a função antiga que plota o mapa
+        }
+    }
+
+    /**
+     * Remove um mapa específico (por ID) da tela e do cache.
+     * Esta função é chamada pelo L.Control do botão fechar.
+     * @param {string} mapIdToRemove O ID do wrapper do mapa (ex: 'map-wifi-...')
+     */
+    function handleCloseMap(mapIdToRemove) {
+        const mapWrapperToRemove = document.getElementById(mapIdToRemove);
+
+        if (mapWrapperToRemove) {
+            // Remove o wrapper do mapa do DOM
+            mapWrapperToRemove.remove();
+
+            // Remove a instância do mapa do cache
+            if (activeMaps[mapIdToRemove]) {
+                activeMaps[mapIdToRemove].remove(); // Remove o mapa Leaflet
+                delete activeMaps[mapIdToRemove];
+            }
+        }
+        
+        // Verifica se ainda há mapas visíveis (especificamente de Wi-Fi).
+        // Um modo mais simples é checar quantos wrappers de mapa sobraram.
+        const remainingMaps = wifiMapContainer.querySelectorAll('.leaflet-map-container').length;
+
+        if (remainingMaps === 0 && Object.keys(activeMaps).length === 0) {
+            // Se não houver mais mapas, mostra o placeholder
+            wifiMapContainer.appendChild(wifiPlaceholder);
+            wifiPlaceholder.style.display = 'block';
+        }
+        
+        // Desmarca o botão de "Plotar Banda" correspondente
+        const correspondingBandButton = document.querySelector(`.plot-wifi-btn[data-map-id="${mapIdToRemove}"]`);
+        if (correspondingBandButton) {
+            correspondingBandButton.classList.remove('btn-primary');
+            correspondingBandButton.classList.add('btn-outline-primary');
         }
     }
 
@@ -490,7 +553,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // 2. Limpa o campo de pesquisa associado
-        // Busca o 'sampleGroup' pai para encontrar a barra de pesquisa
         const sampleGroup = button.closest('.sample-wifi-group');
         if (sampleGroup) {
             const searchBar = sampleGroup.querySelector('.wifi-search-bar');
@@ -500,11 +562,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-
     /**
      * Filtra a lista de SSIDs com base no texto digitado na barra de pesquisa.
      * Lógica principal:
-     * 1. Se a pesquisa estiver vazia, esconde TODOS os itens.
+     * 1. Se a pesquisa estiver vazia, esconde TODOS os itens (para forçar o uso do filtro ou "Mostrar Todos").
      * 2. Se houver texto, mostra apenas os itens que dão match.
      * @param {Event} event O objeto do evento 'keyup'.
      */
@@ -524,17 +585,13 @@ document.addEventListener('DOMContentLoaded', function() {
         items.forEach(item => {
             const ssidName = item.dataset.ssidName; // Nome do SSID (em minúsculas)
 
-            // Lógica de filtragem:
             if (filterText === "") {
-                // 1. Se a barra de pesquisa estiver vazia, esconde o item
                 item.style.display = 'none';
             }
             else if (ssidName.includes(filterText)) {
-                // 2. Se não estiver vazia E der match, mostra
                 item.style.display = 'block';
             }
             else {
-                // 3. Se não der match, esconde
                 item.style.display = 'none';
             }
         });
@@ -542,8 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Manipula o clique no botão "Adicionar Amostra" (Wi-Fi).
-     * Carrega o arquivo JSON da amostra selecionada, armazena em cache,
-     * e chama a função para popular os controles (botões, pesquisa, etc).
+     * Carrega o arquivo JSON e chama a função para popular a Etapa 2.
      */
     function handleAddWifiSample() {
         const selectedOption = wifiSelect.options[wifiSelect.selectedIndex];
@@ -567,16 +623,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(wifiData => {
-                // Armazena dados no cache
                 loadedWifiData[jsonPath] = { name: sampleName, data: wifiData };
                 
                 wifiSpinner.classList.add('d-none');
                 wifiSpinner.classList.remove('d-flex');
                 
-                // Cria a UI de controles (pesquisa, botões) para esta amostra
-                populateWifiControls(jsonPath, sampleName, wifiData);
+                // Cria a UI de controles (pesquisa, caixas de SSID) para esta amostra
+                populateWifiSsidControls(jsonPath, sampleName, wifiData);
                 
-                wifiControlsContainer.style.display = 'block';
+                wifiSsidControlsContainer.style.display = 'block';
             })
             .catch(err => {
                 console.error("Erro ao carregar dados Wi-Fi:", err);
@@ -587,14 +642,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Limpa a visualização de Wi-Fi.
-     * Reseta caches, limpa os mapas e controles, e restaura o placeholder.
+     * Reseta caches, limpa mapas, e limpa as Etapas 2 e 3.
      */
     function handleResetWifiView() {
         loadedWifiData = {};
+
+        // Remove cada instância de mapa Leaflet antes de limpar o DOM
+        for (const mapId in activeMaps) {
+            if (activeMaps[mapId]) {
+                activeMaps[mapId].remove();
+            }
+        }
+
         activeMaps = {}; // Limpa o cache de mapas Leaflet
-        wifiControlsList.innerHTML = '';
-        wifiMapContainer.innerHTML = ''; // Limpa os mapas renderizados
-        wifiControlsContainer.style.display = 'none';
+        
+        wifiSsidListContainer.innerHTML = '';      // Limpa Etapa 2
+        wifiBandButtonsList.innerHTML = '';        // Limpa Etapa 3
+        wifiMapContainer.innerHTML = '';           // Limpa os mapas renderizados
+
+        wifiSsidControlsContainer.style.display = 'none';
+        wifiBandControlsContainer.style.display = 'none';
         
         // Recoloca o placeholder dentro do contêiner de mapas
         wifiMapContainer.appendChild(wifiPlaceholder);
@@ -603,19 +670,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Cria a UI de controle para uma amostra de Wi-Fi recém-carregada.
+     * Cria a UI de controle para uma amostra de Wi-Fi recém-carregada (Etapa 2).
      * Isso inclui: Título da amostra, Barra de Pesquisa, Botões "Mostrar/Esconder Todos",
-     * e a lista (grid) de botões de plotagem para cada SSID/banda.
+     * e a lista (grid) de CAIXAS CLICÁVEIS para cada SSID.
      *
      * @param {string} jsonPath - O caminho para o JSON (ID do cache).
      * @param {string} sampleName - O nome da amostra (para o título).
      * @param {Object} wifiData - Os dados de Wi-Fi (formato: {'SSID': {'Banda': [[...]]}})
      */
-    function populateWifiControls(jsonPath, sampleName, wifiData) {
+    function populateWifiSsidControls(jsonPath, sampleName, wifiData) {
         const ssids = Object.keys(wifiData);
         
         const sampleGroup = document.createElement('div');
-        sampleGroup.className = 'sample-wifi-group mb-3 p-2 border rounded';
+        sampleGroup.className = 'sample-wifi-group mb-3';
         
         // ID único para a *lista* de SSIDs desta amostra (para a pesquisa)
         const listId = `wifi-list-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
@@ -626,7 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
         groupHTML += `
             <input type="text" 
                    class="form-control form-control-sm mb-2 wifi-search-bar" 
-                   placeholder="Digite para filtrar SSIDs..."
+                   placeholder="Digite para filtrar SSIDs... "
                    aria-label="Filtrar SSIDs para ${sampleName}"
                    data-list-id="${listId}"> `;
 
@@ -643,47 +710,93 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         // 3. Adiciona a div que conterá a lista (grid) de SSIDs
-        groupHTML += `<div id="${listId}" class="wifi-ssid-list-grid" style="max-height: 250px; overflow-y: auto;">`;
+        groupHTML += `<div id="${listId}" class="wifi-ssid-list-grid">`;
 
         if (ssids.length === 0) {
             groupHTML += `<p class="text-muted">Nenhum SSID encontrado na amostra ${sampleName}.</p>`;
         } else {
             ssids.sort().forEach(ssid => {
-                const bands = Object.keys(wifiData[ssid]);
                 
-                // 4. Contêiner para os botões de um SSID
+                // 4. Contêiner para a caixa do SSID
                 // Começa escondido (display: none)
-                groupHTML += `<div class="mb-2 wifi-ssid-item" data-ssid-name="${ssid.toLowerCase()}" style="display: none;">
-                                <span class="fw-bold">${ssid}</span>: `;
-                
-                // 5. Cria os botões de plotagem (ex: "Plotar 2.4GHz")
-                bands.forEach(band => {
-                    // ID único para o mapa que será gerado
-                    const mapId = `map-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}-${ssid.replace(/[^a-zA-Z0.9]/g, '_')}-${band}`;
-                    
-                    groupHTML += `
-                        <button class="btn btn-sm btn-outline-primary plot-wifi-btn"
-                                data-json-path="${jsonPath}"
-                                data-ssid="${ssid}"
-                                data-band="${band}"
-                                data-map-id="${mapId}">
-                            Plotar ${band}
-                        </button>
-                    `;
-                });
-                groupHTML += `</div>`; // Fim de wifi-ssid-item
+                // (MUDANÇA: Não criamos mais botões de banda aqui)
+                groupHTML += `
+                    <div class="mb-2 wifi-ssid-item" 
+                         data-ssid-name="${ssid.toLowerCase()}" 
+                         style="display: none;">
+                        
+                        <a href="#" class="ssid-selectable-box"
+                           data-json-path="${jsonPath}"
+                           data-ssid="${ssid}"
+                           onclick="return false;">
+                            ${ssid}
+                        </a>
+                    </div>`;
             });
         }
         
         groupHTML += `</div>`; // Fim da div da lista (grid)
         
         sampleGroup.innerHTML = groupHTML;
-        wifiControlsList.appendChild(sampleGroup);
+        wifiSsidListContainer.appendChild(sampleGroup);
     }
 
     /**
-     * Manipula o clique em um botão "Plotar [banda]".
-     * Esta função é chamada pela delegação de evento `handleWifiGlobalClick`.
+     * NOVO: Manipula o clique em uma caixa de SSID (Etapa 2).
+     * Popula a Etapa 3 com os botões de banda disponíveis.
+     * @param {HTMLElement} ssidBox O elemento <a> clicado.
+     */
+    function handleSsidBoxClick(ssidBox) {
+        const { jsonPath, ssid } = ssidBox.dataset;
+        
+        // 1. UI de Ativação: Remove 'active' de todas as caixas
+        // e adiciona na clicada.
+        document.querySelectorAll('.ssid-selectable-box').forEach(box => {
+            box.classList.remove('active');
+        });
+        ssidBox.classList.add('active');
+
+        // 2. Encontra os dados no cache
+        const sample = loadedWifiData[jsonPath];
+        if (!sample || !sample.data[ssid]) {
+            console.error("Dados do SSID não encontrados no cache.", ssid, sample);
+            return;
+        }
+        
+        // Pega o nome da amostra (para o ID do mapa)
+        const sampleName = sample.name;
+        // Pega as bandas disponíveis (ex: ["2.4GHz", "5GHz"])
+        const bands = Object.keys(sample.data[ssid]);
+
+        // 3. Limpa botões de banda antigos (Etapa 3)
+        wifiBandButtonsList.innerHTML = '';
+
+        // 4. Cria os novos botões de banda
+        bands.forEach(band => {
+            // ID único para o mapa que será gerado
+            const mapId = `map-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}-${ssid.replace(/[^a-zA-Z0.9]/g, '_')}-${band}`;
+            
+            const button = document.createElement('button');
+            // Usamos 'btn-outline-primary' para que não pareçam ativos
+            button.className = 'btn btn-outline-primary me-2 mb-2 plot-wifi-btn';
+            button.textContent = `Plotar ${band}`;
+            
+            // Adiciona os data attributes para o handler 'handleWifiControlClick'
+            button.dataset.jsonPath = jsonPath;
+            button.dataset.ssid = ssid;
+            button.dataset.band = band;
+            button.dataset.mapId = mapId;
+            
+            wifiBandButtonsList.appendChild(button);
+        });
+
+        // 5. Mostra a Etapa 3
+        wifiBandControlsContainer.style.display = 'block';
+    }
+
+    /**
+     * Manipula o clique em um botão "Plotar [banda]" (Etapa 3).
+     * Esta função é chamada pela delegação de evento `handleWifiBandListClick`.
      * Cria e renderiza um novo mapa de calor Leaflet.
      *
      * @param {HTMLElement} button O botão "plot-wifi-btn" que foi clicado.
@@ -691,6 +804,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleWifiControlClick(button) {
         // Pega os dados armazenados no botão
         const { jsonPath, ssid, band, mapId } = button.dataset;
+
+        // UI de Ativação: Marca este botão como "ativo" e desmarca outros
+        document.querySelectorAll('.plot-wifi-btn').forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        });
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-primary');
+
 
         // Se o mapa já foi plotado, apenas rola a tela até ele
         if (activeMaps[mapId]) {
@@ -710,76 +832,116 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // 2. Cria os contêineres do mapa (Wrapper e Div interna)
-        const mapWrapper = document.createElement('div');
-        mapWrapper.id = mapId;
-        mapWrapper.className = 'col-12 col-lg-6 mb-4'; // Layout de bootstrap
+        let mapWrapper = document.getElementById(mapId);
+        if (mapWrapper) {
+            mapWrapper.innerHTML = ''; 
+        } else {
+            mapWrapper = document.createElement('div');
+            mapWrapper.id = mapId;
+            // MUDANÇA: Adicionamos 'leaflet-map-wrapper' para consistência, 
+            // embora o L.Control não precise dele para posicionamento.
+            mapWrapper.className = 'col-12 col-lg-6 mb-4 leaflet-map-wrapper'; 
+            wifiMapContainer.appendChild(mapWrapper);
+        }
         
         const title = document.createElement('h5');
         title.className = 'text-center';
         title.innerHTML = `${ssid} (${band})<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleData.name}</span>`;
         
         const mapInnerDiv = document.createElement('div');
-        mapInnerDiv.className = 'leaflet-map-container'; // Usado para redimensionamento
-        mapInnerDiv.setAttribute('data-map-id', mapId);  // Link para o cache 'activeMaps'
+        mapInnerDiv.className = 'leaflet-map-container'; 
+        mapInnerDiv.setAttribute('data-map-id', mapId); 
 
         mapWrapper.appendChild(title);
         mapWrapper.appendChild(mapInnerDiv);
-        wifiMapContainer.appendChild(mapWrapper);
 
-        // 3. Lógica de Plotagem (recriando a lógica do notebook)
+        // MUDANÇA: Removemos o botão HTML antigo daqui.
+        // O código 'const closeBtn = ...' foi removido.
+
+        // 3. Lógica de Plotagem
         
         // 3a. Calcular centro e normalizar dados
         let centerLat = 0;
         let centerLon = 0;
-        const levels = heatData.map(p => p[2]); // Todos os níveis de sinal (ex: -90, -50)
-        const minLevel = Math.min(...levels);   // Sinal mais fraco (ex: -90)
-        const maxLevel = Math.max(...levels);   // Sinal mais forte (ex: -50)
-        const range = maxLevel - minLevel;      // Amplitude do sinal (ex: 40)
+        const levels = heatData.map(p => p[2]);
+        const minLevel = Math.min(...levels);
+        const maxLevel = Math.max(...levels);
+        const range = maxLevel - minLevel;
 
         const normalizedHeatData = heatData.map(point => {
             const [lat, lon, level] = point;
             centerLat += lat;
             centerLon += lon;
             
-            // Normaliza a intensidade (level) de 0.0 a 1.0
-            // O plugin Leaflet.heat espera 'intensity' entre 0.0 (frio) e 1.0 (quente)
-            let intensity = 0.5; // Caso padrão se houver só 1 ponto (range=0)
+            let intensity = 0.5; 
             if (range > 0) {
-                // (level - min) / range -> ex: (-50 - (-90)) / 40 = 40 / 40 = 1.0 (quente)
-                // ex: (-90 - (-90)) / 40 = 0 / 40 = 0.0 (frio)
                 intensity = (level - minLevel) / range;
             }
-            return [lat, lon, intensity]; // Retorna [lat, lon, intensity_normalizada]
+            return [lat, lon, intensity];
         });
         
-        // Calcula a média para centralizar o mapa
         centerLat /= heatData.length;
         centerLon /= heatData.length;
 
         // 3b. Criar o mapa Leaflet
-        const map = L.map(mapInnerDiv).setView([centerLat, centerLon], 18); // Zoom inicial 18
+        const map = L.map(mapInnerDiv).setView([centerLat, centerLon], 18);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxNativeZoom: 19, // Zoom máximo dos tiles do provedor
-            maxZoom: 22        // Permite "over-zoom" (zoom digital)
+            maxNativeZoom: 19, 
+            maxZoom: 22        
         }).addTo(map);
 
         // 3c. Adicionar a camada de HeatMap
         L.heatLayer(normalizedHeatData, {
-            radius: 15, // Raio de influência de cada ponto
-            blur: 10,   // Nível de "borrão"
+            radius: 15, 
+            blur: 10,   
         }).addTo(map);
 
-        // 4. Salva a instância do mapa no cache global
+        // 4. MUDANÇA: Adiciona o controle de "Fechar" (estilo Leaflet)
+        const CloseControl = L.Control.extend({
+            options: {
+                position: 'topright' // Posição do controle
+            },
+            onAdd: function(map) {
+                // Cria o container do botão
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+                
+                container.innerHTML = '&times;'; // 'X' (símbolo HTML)
+                container.title = "Fechar este mapa";
+                
+                // Estilos (iguais ao da aba Resumo)
+                container.style.backgroundColor = 'white';
+                container.style.width = '30px';
+                container.style.height = '30px';
+                container.style.textAlign = 'center';
+                container.style.lineHeight = '30px';
+                container.style.fontSize = '1.8rem';
+                container.style.fontWeight = 'bold';
+                container.style.cursor = 'pointer';
+
+                // Previne que o clique se propague para o mapa
+                L.DomEvent.disableClickPropagation(container);
+
+                // Adiciona o listener de clique
+                L.DomEvent.on(container, 'click', function() {
+                    // Chama a nossa nova função de fechar
+                    handleCloseMap(mapId); 
+                });
+
+                return container;
+            }
+        });
+
+        // Adiciona o novo controle ao mapa
+        new CloseControl().addTo(map);
+
+        // 5. Salva a instância do mapa no cache global
         activeMaps[mapId] = map;
 
-        // 5. Força o mapa a redimensionar
-        // Necessário pois o mapa foi criado em uma div que não estava visível
-        // ou que mudou de tamanho.
+        // 6. Força o mapa a redimensionar
         setTimeout(() => map.invalidateSize(), 10);
     }
-
 
     /**
      * =================================================================

@@ -268,10 +268,16 @@
                     <button class="btn btn-danger" id="reset-wifi-view-btn">Limpar Tudo</button>
                 </div>
             </div>
-        
-            <div class="mb-3" id="wifi-controls-container" style="display: none;">
-                <label class="form-label"><strong>2. SSIDs Carregados:</strong></label>
-                <div class="border rounded p-3" id="wifi-controls-list" style="max-height: 300px; overflow-y: auto;">
+
+            <div class="mb-3" id="wifi-ssid-controls-container" style="display: none;">
+                <label class="form-label"><strong>2. Selecionar SSID:</strong></label>
+                <div class="border rounded p-3" id="wifi-ssid-list-container" style="max-height: 300px; overflow-y: auto;">
+                    </div>
+            </div>
+
+            <div class="mb-3" id="wifi-band-controls-container" style="display: none;">
+                <label class="form-label"><strong>3. Plotar Banda Wi-Fi:</strong></label>
+                <div class="border rounded p-3" id="wifi-band-buttons-list">
                     </div>
             </div>
 
@@ -290,7 +296,7 @@
             </div>
         </div>
         {% endif %}
-
+        
         {% if sections.images %}
         <div id="images" class="section">
             <h2>Imagens</h2>
