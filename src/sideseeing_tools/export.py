@@ -417,7 +417,7 @@ class Report:
         Copia os assets (CSS/JS) de dentro do pacote para o diretório de saída.
         """
         print("Copiando arquivos de assets (CSS/JS)...")
-        assets = ['template2.js', 'template.css']
+        assets = ['template.js', 'template.css']
         
         try:
             for asset in assets:
