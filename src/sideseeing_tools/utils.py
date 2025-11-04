@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import reverse_geocode
+from math import radians, sin, cos, sqrt, asin
 
 from .constants import CELL_SNIPPET_HEADER, WIFI_SNIPPET_HEADER
 
@@ -470,3 +471,16 @@ def get_dir_size(dir_path: str) -> float:
 
         # Converter bytes para GB
         return total_size / (1024**3)
+
+def calculate_haversine_distance(lat1, lon1, lat2, lon2):
+    """ Calcula a distância entre dois pontos lat/lon em km. """
+    R = 6371  
+    
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+    return R * c
+

@@ -5,7 +5,6 @@ import numpy as np
 import shutil
 import importlib.resources
 from . import sideseeing, utils
-from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 from jinja2 import Environment, PackageLoader
 from typing import List, Dict, Tuple, Optional
@@ -13,7 +12,7 @@ from typing import List, Dict, Tuple, Optional
 class Report:
 
     DEFAULT_TEMPLATE_PACKAGE = "sideseeing_tools.templates"
-    DEFAULT_TEMPLATE_NAME = "template_report.html"
+    DEFAULT_TEMPLATE_NAME = "template.html"
 
     def __init__(self):
         """
@@ -36,45 +35,6 @@ class Report:
         ds = sideseeing.SideSeeingDS(root_dir=dir_path)
         title = f"Relatório de '{os.path.basename(dir_path)}'"
         return title, ds
-    
-    def _calculate_haversine_distance(self, lat1, lon1, lat2, lon2):
-        """ Calcula a distância entre dois pontos lat/lon em km. """
-        R = 6371  # Raio da Terra em km
-        
-        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-        
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
-        c = 2 * asin(sqrt(a))
-        return R * c
-    
-    def _calculate_total_distance(self, ds: sideseeing.SideSeeingDS) -> float:
-        """ Calcula a distância total percorrida em todas as amostras. """
-
-        print("Calculando distância total percorrida (pode levar um tempo)...")
-        total_distance = 0
-        for instance in ds.iterator:
-            df_gps = instance.geolocation_points
-            if df_gps is None or df_gps.empty or len(df_gps) < 2:
-                continue
-                
-            df_gps = df_gps.sort_values(by='Datetime UTC')
-            df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
-            df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
-            df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
-            
-            # Calcula a distância entre pontos consecutivos
-            distances = [
-                self._calculate_haversine_distance(  
-                    df_gps.iloc[i]['latitude'], df_gps.iloc[i]['longitude'],
-                    df_gps.iloc[i + 1]['latitude'], df_gps.iloc[i + 1]['longitude']
-                )
-                for i in range(len(df_gps) - 1)
-            ]
-            total_distance += sum(distances)
-            
-        return total_distance
     
     def _format_duration(self, seconds: float) -> str:
         """
@@ -112,15 +72,13 @@ class Report:
 
             metadata_df.set_index('name', inplace=True, drop=False)
 
-            # --- SEÇÃO 1: KPIs Globais ---
+            # --- KPIs Globais ---
+
             summary_data['total_instances'] = ds.size
             summary_data['total_duration_human'] = self._format_duration(metadata_df['media_total_time'].sum())
-            
-            # Calcula tamanho e distância
             summary_data['total_size_gb'] = utils.get_dir_size(data_dir_path)
-            summary_data['total_distance_km'] = self._calculate_total_distance(ds)
-            
-            # --- SEÇÃO 2: Detalhes por Amostra e Agregadores ---
+
+            # --- Detalhes por Amostra e Agregadores ---
 
             sensor_types = set()
             for ax, sensors in ds.sensors.items():
@@ -130,6 +88,8 @@ class Report:
             
             geo_centers_map = [] 
             sample_details = []
+            
+            total_distance_km = 0.0 
 
             print("Processando detalhes de cada amostra...")
             for instance in ds.iterator:
@@ -153,10 +113,18 @@ class Report:
                 except Exception:
                     details['period_str'] = "N/A"
                 
+                # Calcula a distância da amostra atual
+                sample_dist_km = instance.calculate_sample_distance_traveled()
+                details['distance_km'] = sample_dist_km
+                
+                # Adiciona ao total
+                total_distance_km += sample_dist_km
+                
                 details['video_str'] = f"{meta.get('video_frames', 0)} frames @ {meta.get('video_fps', 0):.1f}fps ({meta.get('video_resolution', 'N/A')})"
                 
-                # MAPA
-                geo_center = instance.geolocation_center #
+                # --- Mapa Central ---
+
+                geo_center = instance.geolocation_center 
                 if geo_center: 
                     geo_centers_map.append({
                         'lat': geo_center[0], 
@@ -164,7 +132,8 @@ class Report:
                         'name': instance.name
                     })
 
-                # --- Checagem de Disponibilidade ---
+                # --- Checagem de Disponibilidade de Sensores ---
+
                 if instance.geolocation_points is not None and not instance.geolocation_points.empty:
                     available_data_basic.append('GPS')
                 if instance.wifi_networks is not None and not instance.wifi_networks.empty:
@@ -181,10 +150,12 @@ class Report:
                 details['available_data_sensors'] = available_data_sensors
                 sample_details.append(details)
             
+            # Adicionamos o total da distância percorrida
+            summary_data['total_distance_km'] = total_distance_km
             summary_data['geo_centers_map'] = geo_centers_map
             summary_data['sample_details'] = sorted(sample_details, key=lambda x: x['name'])
             
-            print("Resumo gerado com sucesso.")
+            print("Sumário gerado com sucesso.")
             return summary_data
     
     def _process_sensors_data(self, ds: sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
@@ -507,13 +478,3 @@ class Report:
 
         self._copy_assets(output_dir)
         
-
-# --- SCRIPT DE TESTE ---
-
-dir_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/dataset'
-out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out4/report.html'
-
-r = Report()
-r.generate_report(dir_path, out_path)
-
-# python3 -m sideseeing_tools.export

@@ -3,6 +3,7 @@ import json
 import os
 import random
 import re
+import pandas as pd
 
 from sideseeing_tools import (
     constants, 
@@ -599,4 +600,30 @@ class SideSeeingInstance:
             prefix,
             left_zeros,
         )
+    
+    def calculate_sample_distance_traveled(self) -> float:
+            """ 
+            Calcula a distância percorrida dentro de uma única amostra, em km. 
+            """
+            df_gps = self.geolocation_points
+            if df_gps is None or df_gps.empty or len(df_gps) < 2:
+                return 0.0
+                
+            df_gps = df_gps.sort_values(by='Datetime UTC')
+            df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
+            df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
+            df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
+            
+            if len(df_gps) < 2:
+                return 0.0
+
+            # Calcula a distância entre pontos consecutivos
+            distances = [
+                utils.calculate_haversine_distance(  
+                    df_gps.iloc[i]['latitude'], df_gps.iloc[i]['longitude'],
+                    df_gps.iloc[i + 1]['latitude'], df_gps.iloc[i + 1]['longitude']
+                )
+                for i in range(len(df_gps) - 1)
+            ]
+            return sum(distances)
 
