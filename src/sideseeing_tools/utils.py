@@ -2,7 +2,7 @@ import csv
 import datetime
 import re
 import requests
-
+import os
 import cv2
 import numpy as np
 import pandas as pd
@@ -457,3 +457,16 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
         snippet.to_csv(output_path, sep=',', columns=data.columns, index=False)
     
     return snippet
+
+def get_dir_size(dir_path: str) -> float:
+        """ Calcula o tamanho total do diretório em GB. """
+
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(dir_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    total_size += os.path.getsize(fp)
+
+        # Converter bytes para GB
+        return total_size / (1024**3)
