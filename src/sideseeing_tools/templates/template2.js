@@ -70,6 +70,118 @@ function showSection(sectionId) {
     }, 150); // 150ms é um valor seguro para a transição
 }
 
+/**
+ * =================================================================
+ * PREENCHE ABA DE RESUMO
+ * =================================================================
+ */
+function initSummaryTab(summaryData) {
+    // Layout padrão para gráficos Plotly
+    const plotlyLayout = (title) => ({
+        title: title || '',
+        margin: { l: 50, r: 20, b: 100, t: 40 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        legend: { orientation: 'h', y: -0.3 }
+    });
+
+    // 1. Renderizar Mapa de Visão Geral com Cluster
+    try {
+        // CORREÇÃO 1: Pegamos os dados completos (incluindo o 'name')
+        const geoPointsData = summaryData.geo_centers_map || [];
+        // Convertemos para o formato [lat, lon] apenas para calcular os limites
+        const geoPointsCoords = geoPointsData.map(point => [point.lat, point.lon]);
+
+        const mapDiv = document.getElementById('summary-overview-map');
+        
+        let mapCenter = [-23.5505, -46.6333]; // Padrão
+        let mapZoom = 10; // Padrão
+        let initialBounds = null; // Limites iniciais
+        
+        if (geoPointsCoords.length > 0) {
+            initialBounds = L.latLngBounds(geoPointsCoords).pad(0.1); 
+            mapCenter = initialBounds.getCenter(); 
+        }
+
+        const overviewMap = L.map(mapDiv).setView(mapCenter, mapZoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(overviewMap);
+
+        // NOVO: Iteramos sobre os DADOS (geoPointsData) em vez das coordenadas
+        geoPointsData.forEach(point => {
+            const latLng = [point.lat, point.lon];
+            const sampleName = point.name || 'Amostra'; // Nome da amostra
+
+            const marker = L.marker(latLng);
+            
+            // ATUALIZAÇÃO 1: Adiciona o popup com o nome da amostra
+            marker.bindPopup(`<b>Amostra:</b><br>${sampleName}`); 
+
+            // ATUALIZAÇÃO 2: Lógica de clique atualizada
+            marker.on('click', function(e) {
+                const targetCenter = e.latlng;
+                const targetZoom = 17;
+                const currentCenter = overviewMap.getCenter();
+                const currentZoom = overviewMap.getZoom();
+
+                // Verificação para evitar o "tremor" (jitter)
+                // Só "voa" se o mapa não estiver já centralizado (< 1 metro de distância)
+                // ou se o zoom for diferente.
+                if (currentCenter.distanceTo(targetCenter) > 1 || currentZoom !== targetZoom) {
+                    overviewMap.flyTo(targetCenter, targetZoom, {
+                        animate: true,
+                        duration: 1.5
+                    });
+                }
+            });
+            
+            marker.addTo(overviewMap);
+        });
+        
+        if (initialBounds) {
+            overviewMap.fitBounds(initialBounds);
+        }
+
+        // Criação do Botão de Recentralizar (Leaflet Control)
+        const RecenterControl = L.Control.extend({
+            options: {
+                position: 'topright' 
+            },
+            onAdd: function(map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+                
+                // ATUALIZAÇÃO 3: Troca do ícone
+                container.innerHTML = '&#x27f3;';
+                container.title = "Recentralizar Mapa";
+                
+                container.style.backgroundColor = 'white';
+                container.style.width = '30px';
+                container.style.height = '30px';
+                container.style.textAlign = 'center';
+                container.style.lineHeight = '30px';
+                container.style.fontSize = '1.6rem'; // Ajustado para o novo ícone
+                container.style.fontWeight = 'bold'; // Deixa o ícone mais visível
+                container.style.cursor = 'pointer';
+
+                L.DomEvent.disableClickPropagation(container);
+
+                L.DomEvent.on(container, 'click', function() {
+                    if (initialBounds) {
+                        map.flyToBounds(initialBounds);
+                    } else {
+                        map.flyTo(mapCenter, mapZoom);
+                    }
+                });
+
+                return container;
+            }
+        });
+
+        new RecenterControl().addTo(overviewMap);
+
+    } catch (e) { console.error("Erro ao renderizar mapa de visão geral:", e); }
+}
 
 /**
  * =================================================================

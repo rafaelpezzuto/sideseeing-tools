@@ -1,13 +1,12 @@
 import os
-import io
-import base64
 import json
 import pandas as pd
-import matplotlib.pyplot as plt
-from . import sideseeing, plot
+import numpy as np
 import shutil
 import importlib.resources
-from datetime import datetime
+from . import sideseeing, utils
+from math import radians, sin, cos, sqrt, asin
+from datetime import datetime, timedelta
 from jinja2 import Environment, PackageLoader
 from typing import List, Dict, Tuple, Optional
 
@@ -24,6 +23,7 @@ class Report:
             loader=PackageLoader(self.DEFAULT_TEMPLATE_PACKAGE.split('.')[0], 
                                  self.DEFAULT_TEMPLATE_PACKAGE.split('.', 1)[1])
         )
+        env.filters['tojson'] = json.dumps
         self.template = env.get_template(self.DEFAULT_TEMPLATE_NAME)
 
     def _load_sideseeing_data(self, dir_path: str) -> Tuple[str, sideseeing.SideSeeingDS]:
@@ -36,38 +36,157 @@ class Report:
         ds = sideseeing.SideSeeingDS(root_dir=dir_path)
         title = f"Relatório de '{os.path.basename(dir_path)}'"
         return title, ds
-
-    def _create_summary(self, ds: sideseeing.SideSeeingDS) -> Dict:
-        """
-        Gera um dicionário com dados de resumo do dataset.
-        """
-        print("Gerando resumo do dataset...")
-        summary_data = {}
-        metadata_df = ds.metadata()
-
-        # Extraimos as estatísticas
-        if not metadata_df.empty:
-            summary_data['total_instances'] = ds.size
-            summary_data['total_duration_seconds'] = metadata_df['media_total_time'].sum()
-            summary_data['so_versions'] = metadata_df['so_version'].unique().tolist()
-            summary_data['devices_manufacturer'] = [
-                f"{row['manufacturer']} {row['model']}"  for _, row in metadata_df[['manufacturer', 'model']].drop_duplicates().iterrows()
-            ]
-        else:
-            summary_data['total_instances'] = 0
-            summary_data['total_duration_seconds'] = 0
-            summary_data['devices+manufacturer'] = []
-            summary_data['so_versions'] = []
-
-        # Extraimos os sensores disponiveis
-        sensor_types = []
-        for ax, sensors in ds.sensors.items():
-            if sensors:
-                sensor_types.extend(list(sensors.keys()))
-        summary_data['sensor_types'] = sensor_types
+    
+    def _calculate_haversine_distance(self, lat1, lon1, lat2, lon2):
+        """ Calcula a distância entre dois pontos lat/lon em km. """
+        R = 6371  # Raio da Terra em km
         
-        return summary_data
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+        
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+        c = 2 * asin(sqrt(a))
+        return R * c
+    
+    def _calculate_total_distance(self, ds: sideseeing.SideSeeingDS) -> float:
+        """ Calcula a distância total percorrida em todas as amostras. """
 
+        print("Calculando distância total percorrida (pode levar um tempo)...")
+        total_distance = 0
+        for instance in ds.iterator:
+            df_gps = instance.geolocation_points
+            if df_gps is None or df_gps.empty or len(df_gps) < 2:
+                continue
+                
+            df_gps = df_gps.sort_values(by='Datetime UTC')
+            df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
+            df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
+            df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
+            
+            # Calcula a distância entre pontos consecutivos
+            distances = [
+                self._calculate_haversine_distance(  
+                    df_gps.iloc[i]['latitude'], df_gps.iloc[i]['longitude'],
+                    df_gps.iloc[i + 1]['latitude'], df_gps.iloc[i + 1]['longitude']
+                )
+                for i in range(len(df_gps) - 1)
+            ]
+            total_distance += sum(distances)
+            
+        return total_distance
+    
+    def _format_duration(self, seconds: float) -> str:
+        """
+        Converte segundos em uma string human-like (H:M:S).
+        """
+        if pd.isna(seconds):
+            return "N/A"
+        try:
+            sec = int(seconds)
+            td = timedelta(seconds=sec)
+            total_horas = td.days * 24 + td.seconds // 3600
+            minutos = (td.seconds // 60) % 60
+            segundos = td.seconds % 60
+            return f"{total_horas}h {minutos}m {segundos}s"
+        except Exception:
+            return f"{seconds:.0f} s"
+        
+    def _create_summary(self, ds: sideseeing.SideSeeingDS, data_dir_path: str) -> Dict:
+            """
+            Gera o dicionário de resumo para o template.
+            """
+            print("Gerando resumo do dataset...")
+            summary_data = {}
+            metadata_df = ds.metadata()
+            
+            if metadata_df.empty:
+                print("AVISO: metadata.csv está vazio ou não foi encontrado.")
+                # Retornamos uma estrutura vazia
+                return {
+                    'total_instances': 0, 'total_duration_human': '0s', 
+                    'total_size_gb': 0, 'total_distance_km': 0,
+                    'duration_histogram_chart': {'bins': [], 'values': []},
+                    'geo_centers_map': [], 'sample_details': []
+                }
+
+            metadata_df.set_index('name', inplace=True, drop=False)
+
+            # --- SEÇÃO 1: KPIs Globais ---
+            summary_data['total_instances'] = ds.size
+            summary_data['total_duration_human'] = self._format_duration(metadata_df['media_total_time'].sum())
+            
+            # Calcula tamanho e distância
+            summary_data['total_size_gb'] = utils.get_dir_size(data_dir_path)
+            summary_data['total_distance_km'] = self._calculate_total_distance(ds)
+            
+            # --- SEÇÃO 2: Detalhes por Amostra e Agregadores ---
+
+            sensor_types = set()
+            for ax, sensors in ds.sensors.items():
+                if sensors:
+                    sensor_types.update(list(sensors.keys()))
+            sorted_sensor_types = sorted(list(sensor_types))
+            
+            geo_centers_map = [] 
+            sample_details = []
+
+            print("Processando detalhes de cada amostra...")
+            for instance in ds.iterator:
+                try:
+                    meta = metadata_df.loc[instance.name]
+                except KeyError:
+                    continue
+
+                details = {}
+                available_data_basic = []
+                available_data_sensors = []
+                
+                details['name'] = instance.name
+                details['device_str'] = f"{meta.get('manufacturer', '?')} {meta.get('model', '?')} (SO: {meta.get('so_version', '?')})"
+                details['duration_human'] = self._format_duration(meta.get('media_total_time', 0))
+                
+                try:
+                    start_str = pd.to_datetime(meta.get('media_start_time')).strftime('%d/%m/%Y %H:%M')
+                    stop_str = pd.to_datetime(meta.get('media_stop_time')).strftime('%d/%m/%Y %H:%M')
+                    details['period_str'] = f"De {start_str} até {stop_str}"
+                except Exception:
+                    details['period_str'] = "N/A"
+                
+                details['video_str'] = f"{meta.get('video_frames', 0)} frames @ {meta.get('video_fps', 0):.1f}fps ({meta.get('video_resolution', 'N/A')})"
+                
+                # MAPA
+                geo_center = instance.geolocation_center #
+                if geo_center: 
+                    geo_centers_map.append({
+                        'lat': geo_center[0], 
+                        'lon': geo_center[1], 
+                        'name': instance.name
+                    })
+
+                # --- Checagem de Disponibilidade ---
+                if instance.geolocation_points is not None and not instance.geolocation_points.empty:
+                    available_data_basic.append('GPS')
+                if instance.wifi_networks is not None and not instance.wifi_networks.empty:
+                    available_data_basic.append('Wi-Fi')
+
+                for sensor_name in sorted_sensor_types:
+                    for axis in ['sensors1', 'sensors3', 'sensors6']: 
+                        sensor_dict = getattr(instance, axis, {})
+                        if sensor_name in sensor_dict and sensor_dict[sensor_name] is not None and not sensor_dict[sensor_name].empty:
+                            available_data_sensors.append(sensor_name)
+                            break 
+                
+                details['available_data_basic'] = available_data_basic
+                details['available_data_sensors'] = available_data_sensors
+                sample_details.append(details)
+            
+            summary_data['geo_centers_map'] = geo_centers_map
+            summary_data['sample_details'] = sorted(sample_details, key=lambda x: x['name'])
+            
+            print("Resumo gerado com sucesso.")
+            return summary_data
+    
     def _process_sensors_data(self, ds: sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
         """
         Prepara os dados dos sensores, salvando um JSON por amostra no diretório 'output_data_dir'.
@@ -321,8 +440,6 @@ class Report:
 
             print(f"Dados GEO processados para {len(instance_json_map)} amostras.")
             return instance_json_map if instance_json_map else None
-                
-
 
     def _copy_assets(self, output_dir: str):
         """
@@ -353,7 +470,7 @@ class Report:
         print(f"Lendo o diretório: {dir_path}")
         title, ds = self._load_sideseeing_data(dir_path)
 
-        summary = self._create_summary(ds)
+        summary = self._create_summary(ds, dir_path)
 
         output_dir = os.path.dirname(output_path) or '.'
         output_data_dir = os.path.join(output_dir, 'data')
@@ -391,13 +508,12 @@ class Report:
         self._copy_assets(output_dir)
         
 
-
 # --- SCRIPT DE TESTE ---
 
 dir_path = '/home/renzo/Documents/GitHub/temp-SideSeeing-Exporter/dataset'
-out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out3/report.html'
+out_path = '/home/renzo/Documents/GitHub/sideseeing-tools-IC/out4/report.html'
 
 r = Report()
 r.generate_report(dir_path, out_path)
 
-# python3 -m sideseeing_tools.export 
+# python3 -m sideseeing_tools.export
