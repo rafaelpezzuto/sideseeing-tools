@@ -411,59 +411,59 @@ class Report:
         return instance_json_map if instance_json_map else None
 
     def _process_geo_data(self, ds:sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
-            """
-            Prepares geospatial data (GPS routes), saving one JSON per sample 
-            in the 'output_data_dir'.
+        """
+        Prepares geospatial data (GPS routes), saving one JSON per sample 
+        in the 'output_data_dir'.
 
-            Args:
-                ds (sideseeing.SideSeeingDS): The loaded dataset object.
-                output_data_dir (str): The directory to save the JSON files.
+        Args:
+            ds (sideseeing.SideSeeingDS): The loaded dataset object.
+            output_data_dir (str): The directory to save the JSON files.
 
-            Returns:
-                Optional[Dict[str, str]]: A dictionary where:
-                    - Key: sample name (instance_name)
-                    - Value: relative path to the JSON file (e.g., 'data/geo_amostra_A.json')
-            """
-            print("Exporting geospatial data to JSONs...")
-            os.makedirs(output_data_dir, exist_ok=True)
-            
-            # Maps instance_name -> "data/geo_instance_name.json"
-            instance_json_map: Dict[str, str] = {}
+        Returns:
+            Optional[Dict[str, str]]: A dictionary where:
+                - Key: sample name (instance_name)
+                - Value: relative path to the JSON file (e.g., 'data/geo_amostra_A.json')
+        """
+        print("Exporting geospatial data to JSONs...")
+        os.makedirs(output_data_dir, exist_ok=True)
+        
+        # Maps instance_name -> "data/geo_instance_name.json"
+        instance_json_map: Dict[str, str] = {}
 
-            for sample in ds.iterator:
-                df_gps = sample.geolocation_points
-                center = sample.geolocation_center
+        for sample in ds.iterator:
+            df_gps = sample.geolocation_points
+            center = sample.geolocation_center
 
-                if df_gps is None or df_gps.empty or center is None:
-                    continue
+            if df_gps is None or df_gps.empty or center is None:
+                continue
 
-                # Data extraction
-                try:
-                    # Get the list of [lat, lon] coordinates
-                    path_data = df_gps[['latitude', 'longitude']].values.tolist()
-                    
-                    output_data = {
-                        "center": center, # Center [lat, lon] for centralization
-                        "path": path_data # List of [lat, lon] points for the polyline
-                    }
+            # Data extraction
+            try:
+                # Get the list of [lat, lon] coordinates
+                path_data = df_gps[['latitude', 'longitude']].values.tolist()
+                
+                output_data = {
+                    "center": center, # Center [lat, lon] for centralization
+                    "path": path_data # List of [lat, lon] points for the polyline
+                }
 
-                except Exception as e:
-                    print(f"Error extracting GPS data for {sample.name}: {e}")
-                    continue
+            except Exception as e:
+                print(f"Error extracting GPS data for {sample.name}: {e}")
+                continue
 
-                json_filename = f"geo_{sample.name}.json"
-                json_save_path = os.path.join(output_data_dir, json_filename)
-                json_relative_path = f"data/{json_filename}" # Path that the HTML will use
+            json_filename = f"geo_{sample.name}.json"
+            json_save_path = os.path.join(output_data_dir, json_filename)
+            json_relative_path = f"data/{json_filename}" # Path that the HTML will use
 
-                try:
-                    with open(json_save_path, 'w', encoding='utf-8') as f:
-                        json.dump(output_data, f) 
-                    
-                    instance_json_map[sample.name] = json_relative_path
-                except Exception as e:
-                    print(f"Error saving geospatial JSON for {sample.name}: {e}")
+            try:
+                with open(json_save_path, 'w', encoding='utf-8') as f:
+                    json.dump(output_data, f) 
+                
+                instance_json_map[sample.name] = json_relative_path
+            except Exception as e:
+                print(f"Error saving geospatial JSON for {sample.name}: {e}")
 
-            return instance_json_map if instance_json_map else None
+        return instance_json_map if instance_json_map else None
 
     def _copy_assets(self, output_dir: str):
         """
