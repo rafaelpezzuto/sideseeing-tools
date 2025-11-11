@@ -460,10 +460,11 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
     return snippet
 
 def get_dir_size(dir_path: str) -> float:
-    """ Calcula o tamanho total do diretório em GB. """
+    """ Calculate the total size of the directory in GB."""
 
     if not os.path.exists(dir_path):
         raise ValueError(f"Path '{dir_path}' does not exist.")
+    
     if not os.path.isdir(dir_path):
         raise ValueError(f"Path '{dir_path}' is not a directory.")
 
@@ -477,7 +478,7 @@ def get_dir_size(dir_path: str) -> float:
     # Converter bytes para GB
     return total_size / (1024**3)
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
-    """ Calcula a distância entre dois pontos lat/lon em km. """
+    """ Calculate the latitude/longitude distance between two points in km. """
     R = 6371  
     
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])

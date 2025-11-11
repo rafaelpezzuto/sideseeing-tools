@@ -603,7 +603,7 @@ class SideSeeingInstance:
     
     def calculate_sample_distance_traveled(self) -> float:
             """ 
-            Calcula a distância percorrida dentro de uma única amostra, em km. 
+            Calculates the distance traveled within a single sample, in km.
             """
             df_gps = self.geolocation_points
             if df_gps is None or df_gps.empty or len(df_gps) < 2:
