@@ -246,13 +246,16 @@ class Report:
         """
         Une os dataframes de wifi e gps com base no timestamp mais próximo.
         """
+        # tolerância de 1 segundo (1000ms)
+        GPS_WIFI_MERGE_TOLERANCE_MS = 1000 
+        
         # faz uma junção temporal dos dados de wifi e gps
         merged_df = pd.merge_asof(
             wifi_df.sort_values("unix_ms"),
             gps_df.sort_values("unix_ms"),
             on="unix_ms",
             direction="nearest",
-            tolerance=1000  # tolerância de 1 segundo (1000ms)
+            tolerance=GPS_WIFI_MERGE_TOLERANCE_MS  
         )
         # Removemos registros onde não foi possível encontrar coordenadas GPS correspondentes
         merged_df = merged_df[merged_df["latitude"].notna() & merged_df["longitude"].notna()]
@@ -477,4 +480,3 @@ class Report:
         print(f"Relatório salvo com sucesso em: {output_path}")
 
         self._copy_assets(output_dir)
-        
