@@ -1,6 +1,6 @@
 /**
  * =================================================================
- * ARQUIVO: template2.js
+ * ARQUIVO: template.js
  * DESCRIÇÃO: Script principal para manipulação da interface,
  * carregamento de dados e plotagem de gráficos (Plotly) e
  * mapas (Leaflet) para as seções de Sensores e Wi-Fi.
