@@ -53,110 +53,110 @@ class Report:
             return f"{seconds:.0f} s"
         
     def _create_summary(self, ds: sideseeing.SideSeeingDS, data_dir_path: str) -> Dict:
-            """
-            Gera o dicionário de resumo para o template.
-            """
-            print("Gerando resumo do dataset...")
-            summary_data = {}
-            metadata_df = ds.metadata()
+        """
+        Gera o dicionário de resumo para o template.
+        """
+        print("Gerando resumo do dataset...")
+        summary_data = {}
+        metadata_df = ds.metadata()
+        
+        if metadata_df.empty:
+            print("AVISO: metadata.csv está vazio ou não foi encontrado.")
+            # Retornamos uma estrutura vazia
+            return {
+                'total_instances': 0, 'total_duration_human': '0s', 
+                'total_size_gb': 0, 'total_distance_km': 0,
+                'duration_histogram_chart': {'bins': [], 'values': []},
+                'geo_centers_map': [], 'sample_details': []
+            }
+
+        metadata_df.set_index('name', inplace=True, drop=False)
+
+        # --- KPIs Globais ---
+
+        summary_data['total_instances'] = ds.size
+        summary_data['total_duration_human'] = self._format_duration(metadata_df['media_total_time'].sum())
+        summary_data['total_size_gb'] = utils.get_dir_size(data_dir_path)
+
+        # --- Detalhes por Amostra e Agregadores ---
+
+        sensor_types = set()
+        for ax, sensors in ds.sensors.items():
+            if sensors:
+                sensor_types.update(list(sensors.keys()))
+        sorted_sensor_types = sorted(list(sensor_types))
+        
+        geo_centers_map = [] 
+        sample_details = []
+        
+        total_distance_km = 0.0 
+
+        print("Processando detalhes de cada amostra...")
+        for instance in ds.iterator:
+            try:
+                meta = metadata_df.loc[instance.name]
+            except KeyError:
+                continue
+
+            details = {}
+            available_data_basic = []
+            available_data_sensors = []
             
-            if metadata_df.empty:
-                print("AVISO: metadata.csv está vazio ou não foi encontrado.")
-                # Retornamos uma estrutura vazia
-                return {
-                    'total_instances': 0, 'total_duration_human': '0s', 
-                    'total_size_gb': 0, 'total_distance_km': 0,
-                    'duration_histogram_chart': {'bins': [], 'values': []},
-                    'geo_centers_map': [], 'sample_details': []
-                }
-
-            metadata_df.set_index('name', inplace=True, drop=False)
-
-            # --- KPIs Globais ---
-
-            summary_data['total_instances'] = ds.size
-            summary_data['total_duration_human'] = self._format_duration(metadata_df['media_total_time'].sum())
-            summary_data['total_size_gb'] = utils.get_dir_size(data_dir_path)
-
-            # --- Detalhes por Amostra e Agregadores ---
-
-            sensor_types = set()
-            for ax, sensors in ds.sensors.items():
-                if sensors:
-                    sensor_types.update(list(sensors.keys()))
-            sorted_sensor_types = sorted(list(sensor_types))
+            details['name'] = instance.name
+            details['device_str'] = f"{meta.get('manufacturer', '?')} {meta.get('model', '?')} (SO: {meta.get('so_version', '?')})"
+            details['duration_human'] = self._format_duration(meta.get('media_total_time', 0))
             
-            geo_centers_map = [] 
-            sample_details = []
+            try:
+                start_str = pd.to_datetime(meta.get('media_start_time')).strftime('%d/%m/%Y %H:%M')
+                stop_str = pd.to_datetime(meta.get('media_stop_time')).strftime('%d/%m/%Y %H:%M')
+                details['period_str'] = f"{start_str} até {stop_str}"
+            except Exception:
+                details['period_str'] = "N/A"
             
-            total_distance_km = 0.0 
-
-            print("Processando detalhes de cada amostra...")
-            for instance in ds.iterator:
-                try:
-                    meta = metadata_df.loc[instance.name]
-                except KeyError:
-                    continue
-
-                details = {}
-                available_data_basic = []
-                available_data_sensors = []
-                
-                details['name'] = instance.name
-                details['device_str'] = f"{meta.get('manufacturer', '?')} {meta.get('model', '?')} (SO: {meta.get('so_version', '?')})"
-                details['duration_human'] = self._format_duration(meta.get('media_total_time', 0))
-                
-                try:
-                    start_str = pd.to_datetime(meta.get('media_start_time')).strftime('%d/%m/%Y %H:%M')
-                    stop_str = pd.to_datetime(meta.get('media_stop_time')).strftime('%d/%m/%Y %H:%M')
-                    details['period_str'] = f"{start_str} até {stop_str}"
-                except Exception:
-                    details['period_str'] = "N/A"
-                
-                # Calcula a distância da amostra atual
-                sample_dist_km = instance.calculate_sample_distance_traveled()
-                details['distance_km'] = sample_dist_km
-                
-                # Adiciona ao total
-                total_distance_km += sample_dist_km
-                
-                details['video_str'] = f"{meta.get('video_frames', 0)} frames @ {meta.get('video_fps', 0):.1f}fps ({meta.get('video_resolution', 'N/A')})"
-                
-                # --- Mapa Central ---
-
-                geo_center = instance.geolocation_center 
-                if geo_center: 
-                    geo_centers_map.append({
-                        'lat': geo_center[0], 
-                        'lon': geo_center[1], 
-                        'name': instance.name
-                    })
-
-                # --- Checagem de Disponibilidade de Sensores ---
-
-                if instance.geolocation_points is not None and not instance.geolocation_points.empty:
-                    available_data_basic.append('GPS')
-                if instance.wifi_networks is not None and not instance.wifi_networks.empty:
-                    available_data_basic.append('Wi-Fi')
-
-                for sensor_name in sorted_sensor_types:
-                    for axis in ['sensors1', 'sensors3', 'sensors6']: 
-                        sensor_dict = getattr(instance, axis, {})
-                        if sensor_name in sensor_dict and sensor_dict[sensor_name] is not None and not sensor_dict[sensor_name].empty:
-                            available_data_sensors.append(sensor_name)
-                            break 
-                
-                details['available_data_basic'] = available_data_basic
-                details['available_data_sensors'] = available_data_sensors
-                sample_details.append(details)
+            # Calcula a distância da amostra atual
+            sample_dist_km = instance.calculate_sample_distance_traveled()
+            details['distance_km'] = sample_dist_km
             
-            # Adicionamos o total da distância percorrida
-            summary_data['total_distance_km'] = total_distance_km
-            summary_data['geo_centers_map'] = geo_centers_map
-            summary_data['sample_details'] = sorted(sample_details, key=lambda x: x['name'])
+            # Adiciona ao total
+            total_distance_km += sample_dist_km
             
-            print("Sumário gerado com sucesso.")
-            return summary_data
+            details['video_str'] = f"{meta.get('video_frames', 0)} frames @ {meta.get('video_fps', 0):.1f}fps ({meta.get('video_resolution', 'N/A')})"
+            
+            # --- Mapa Central ---
+
+            geo_center = instance.geolocation_center 
+            if geo_center: 
+                geo_centers_map.append({
+                    'lat': geo_center[0], 
+                    'lon': geo_center[1], 
+                    'name': instance.name
+                })
+
+            # --- Checagem de Disponibilidade de Sensores ---
+
+            if instance.geolocation_points is not None and not instance.geolocation_points.empty:
+                available_data_basic.append('GPS')
+            if instance.wifi_networks is not None and not instance.wifi_networks.empty:
+                available_data_basic.append('Wi-Fi')
+
+            for sensor_name in sorted_sensor_types:
+                for axis in ['sensors1', 'sensors3', 'sensors6']: 
+                    sensor_dict = getattr(instance, axis, {})
+                    if sensor_name in sensor_dict and sensor_dict[sensor_name] is not None and not sensor_dict[sensor_name].empty:
+                        available_data_sensors.append(sensor_name)
+                        break 
+            
+            details['available_data_basic'] = available_data_basic
+            details['available_data_sensors'] = available_data_sensors
+            sample_details.append(details)
+        
+        # Adicionamos o total da distância percorrida
+        summary_data['total_distance_km'] = total_distance_km
+        summary_data['geo_centers_map'] = geo_centers_map
+        summary_data['sample_details'] = sorted(sample_details, key=lambda x: x['name'])
+        
+        print("Sumário gerado com sucesso.")
+        return summary_data
     
     def _process_sensors_data(self, ds: sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
         """
@@ -248,7 +248,7 @@ class Report:
         """
         # tolerância de 1 segundo (1000ms)
         GPS_WIFI_MERGE_TOLERANCE_MS = 1000 
-        
+
         # faz uma junção temporal dos dados de wifi e gps
         merged_df = pd.merge_asof(
             wifi_df.sort_values("unix_ms"),
