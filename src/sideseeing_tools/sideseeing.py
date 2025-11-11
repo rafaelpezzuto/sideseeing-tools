@@ -617,13 +617,16 @@ class SideSeeingInstance:
             if len(df_gps) < 2:
                 return 0.0
 
-            # Calcula a distância entre pontos consecutivos
-            distances = [
-                utils.calculate_haversine_distance(  
-                    df_gps.iloc[i]['latitude'], df_gps.iloc[i]['longitude'],
-                    df_gps.iloc[i + 1]['latitude'], df_gps.iloc[i + 1]['longitude']
-                )
-                for i in range(len(df_gps) - 1)
-            ]
-            return sum(distances)
+            # Calcula a distância entre pontos consecutivos usando operações vetorizadas do pandas
+            df_gps['latitude_next'] = df_gps['latitude'].shift(-1)
+            df_gps['longitude_next'] = df_gps['longitude'].shift(-1)
+            mask = df_gps['latitude_next'].notnull() & df_gps['longitude_next'].notnull()
+            distances = df_gps.loc[mask].apply(
+                lambda row: utils.calculate_haversine_distance(
+                    row['latitude'], row['longitude'],
+                    row['latitude_next'], row['longitude_next']
+                ),
+                axis=1
+            )
+            return distances.sum()
 
