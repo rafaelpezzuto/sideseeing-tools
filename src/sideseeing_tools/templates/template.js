@@ -77,13 +77,6 @@ function showSection(sectionId) {
  */
 function initSummaryTab(summaryData) {
     // Layout padrão para gráficos Plotly
-    const plotlyLayout = (title) => ({
-        title: title || '',
-        margin: { l: 50, r: 20, b: 100, t: 40 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        legend: { orientation: 'h', y: -0.3 }
-    });
 
     // 1. Renderizar Mapa de Visão Geral com Cluster
     try {
