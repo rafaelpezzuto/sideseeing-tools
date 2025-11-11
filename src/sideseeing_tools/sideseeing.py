@@ -602,31 +602,33 @@ class SideSeeingInstance:
         )
     
     def calculate_sample_distance_traveled(self) -> float:
-            """ 
-            Calculates the distance traveled within a single sample, in km.
-            """
-            df_gps = self.geolocation_points
-            if df_gps is None or df_gps.empty or len(df_gps) < 2:
-                return 0.0
-                
-            df_gps = df_gps.sort_values(by='Datetime UTC')
-            df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
-            df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
-            df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
+        """ 
+        Calculates the distance traveled within a single sample, in km.
+        """
+        df_gps = self.geolocation_points
+        if df_gps is None or df_gps.empty or len(df_gps) < 2:
+            return 0.0
             
-            if len(df_gps) < 2:
-                return 0.0
+        df_gps = df_gps.sort_values(by='Datetime UTC')
+        df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
+        df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
+        df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
+        
+        if len(df_gps) < 2:
+            return 0.0
 
-            # Calcula a distância entre pontos consecutivos usando operações vetorizadas do pandas
-            df_gps['latitude_next'] = df_gps['latitude'].shift(-1)
-            df_gps['longitude_next'] = df_gps['longitude'].shift(-1)
-            mask = df_gps['latitude_next'].notnull() & df_gps['longitude_next'].notnull()
-            distances = df_gps.loc[mask].apply(
-                lambda row: utils.calculate_haversine_distance(
-                    row['latitude'], row['longitude'],
-                    row['latitude_next'], row['longitude_next']
-                ),
-                axis=1
-            )
-            return distances.sum()
+        # Calculate the distance between consecutive points using pandas vector operations.
+        df_gps['latitude_next'] = df_gps['latitude'].shift(-1)
+        df_gps['longitude_next'] = df_gps['longitude'].shift(-1)
+        mask = df_gps['latitude_next'].notnull() & df_gps['longitude_next'].notnull()
+        
+        distances = df_gps.loc[mask].apply(
+            lambda row: utils.calculate_haversine_distance(
+                row['latitude'], row['longitude'],
+                row['latitude_next'], row['longitude_next']
+            ),
+            axis=1
+        )
+
+        return distances.sum()
 

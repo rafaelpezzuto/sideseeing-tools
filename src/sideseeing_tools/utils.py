@@ -475,8 +475,9 @@ def get_dir_size(dir_path: str) -> float:
             if not os.path.islink(fp):
                 total_size += os.path.getsize(fp)
 
-    # Converter bytes para GB
+    # Convert bytes to GB
     return total_size / (1024**3)
+
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     """ Calculate the latitude/longitude distance between two points in km. """
     R = 6371  
