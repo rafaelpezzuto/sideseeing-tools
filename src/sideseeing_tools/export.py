@@ -1,17 +1,21 @@
-import os
-import json
-import pandas as pd
-import shutil
-import importlib.resources
-from . import sideseeing, utils
 from datetime import datetime, timedelta
 from jinja2 import Environment, PackageLoader
-from typing import List, Dict, Tuple, Optional
+from math import radians, sin, cos, sqrt, asin
+from typing import List, Dict, Optional
+
+import argparse
+import importlib.resources
+import json
+import os
+import pandas as pd
+import shutil
+
+from . import sideseeing, utils
 
 class Report:
 
     DEFAULT_TEMPLATE_PACKAGE = "sideseeing_tools.templates"
-    DEFAULT_TEMPLATE_NAME = "template.html"
+    DEFAULT_TEMPLATE_NAME = "report.html"
 
     def __init__(self):
         """
@@ -23,27 +27,18 @@ class Report:
         )
         env.filters['tojson'] = json.dumps
         self.template = env.get_template(self.DEFAULT_TEMPLATE_NAME)
-
-    def _load_sideseeing_data(self, dir_path: str) -> Tuple[str, sideseeing.SideSeeingDS]:
+    
+    def _load_sideseeing_data(self, input_dir, generate_metadata=False):
         """
         Loads the dataset using sideseeing-tools.
-
-        Args:
-            dir_path (str): Path to the dataset root directory.
-
-        Returns:
-            Tuple[str, sideseeing.SideSeeingDS]: A tuple containing the report title 
-                                                and the loaded SideSeeingDS object.
-        
-        Raises:
-            NotADirectoryError: If the specified path is not a directory.
         """
-        if not os.path.isdir(dir_path):
-            raise NotADirectoryError(f"O caminho especificado não é um diretório: {dir_path}")
+        if not os.path.isdir(input_dir):
+            raise NotADirectoryError(f"Input directory is not valid: {input_dir}")
             
-        ds = sideseeing.SideSeeingDS(root_dir=dir_path)
-        title = f"Relatório de '{os.path.basename(dir_path)}'"
-        return title, ds
+        return sideseeing.SideSeeingDS(
+            root_dir=input_dir, 
+            generate_metadata=generate_metadata
+        )
     
     def _format_duration(self, seconds: float) -> str:
         """
@@ -466,57 +461,55 @@ class Report:
 
     def _copy_assets(self, output_dir: str):
         """
-        Copies assets (CSS/JS) from within the package to the output directory.
-
-        Args:
-            output_dir (str): The destination directory for the assets.
+        Copy static assets (CSS/JS) bundled in the package to the output directory.
         """
-        print("Copying asset files (CSS/JS)...")
-        assets = ['template.js', 'template.css']
-        
-        try:
-            for asset in assets:
-                # Find the file inside the package
-                traversable = importlib.resources.files(self.DEFAULT_TEMPLATE_PACKAGE).joinpath(asset)
-                
-                # Open as a temporary file on the system
-                with importlib.resources.as_file(traversable) as src_path:
-                    destiny_path = os.path.join(output_dir, asset)
-                    shutil.copy(src_path, destiny_path)
-            
-            print(f"Assets copied to {output_dir}")
+        source_static = importlib.resources.files(self.DEFAULT_TEMPLATE_PACKAGE).joinpath("static")
+        target_static = os.path.join(output_dir, "static")
 
-        except Exception as e:
-            print(f"Error copying assets: {e}.")
+        os.makedirs(output_dir, exist_ok=True)
 
-    def generate_report(self, dir_path: str, output_path: str):
+        with importlib.resources.as_file(source_static) as src_fs_path:
+            shutil.copytree(src_fs_path, target_static, dirs_exist_ok=True)
+
+        print(f"Assets copied to: {target_static}")
+   
+    def generate_report(self, input_dir: str, output_dir: str, title: str = None, generate_metadata: bool = False):
         """
-        Generates a complete HTML report from a data directory.
-
-        Args:
-            dir_path (str): The path to the root directory of the dataset.
-            output_path (str): The full path where the HTML report will be saved.
+        Generate the HTML report from the SideSeeing dataset located in 'input_dir' and save it to 'output_dir'.
         """
-        print(f"Reading directory data: {dir_path}")
-        title, ds = self._load_sideseeing_data(dir_path)
+        print(f"Loading directory: {input_dir}")
+        ds = self._load_sideseeing_data(input_dir, generate_metadata)
 
-        summary = self._create_summary(ds, dir_path)
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
 
-        output_dir = os.path.dirname(output_path) or '.'
-        output_data_dir = os.path.join(output_dir, 'data')
+        # Paths inside the output directory
+        output_html = os.path.join(output_dir, "index.html")
+        output_dir_data = os.path.join(output_dir, "data") 
+        os.makedirs(output_dir_data, exist_ok=True)
 
+        # Create summary
+        summary = self._create_summary(ds, input_dir)
+
+        # Process data sections
         sections = {
-            'sensor': self._process_sensors_data(ds, output_data_dir),
-            'wifi': self._process_wifi_data(ds, output_data_dir),
-            'geo': self._process_geo_data(ds, output_data_dir)
-            # In the future:
-            # 'images': self._process_images_data(ds, output_data_dir)
+            'sensor': self._process_sensors_data(ds, output_dir_data),
+            'wifi': self._process_wifi_data(ds, output_dir_data),
+            'geo': self._process_geo_data(ds, output_dir_data)
+            # TODO:
+            #   create image processing method
+            #   create cell network processing method
         }
 
-        # Filter sections for display   
+        # Filter out None sections
         processed_sections = {key: value for key, value in sections.items() if value is not None}
 
-        print("Rendering template...")
+        # Default title if not provided
+        if not title:
+            input_dir_stz = input_dir
+            while input_dir_stz.endswith(os.sep):
+                input_dir_stz = input_dir_stz[:-1]
+            title = f"SideSeeing Report - {os.path.basename(input_dir_stz)}"
 
         context = {
             "title": title,
@@ -525,14 +518,24 @@ class Report:
             "data_geracao": datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         }
 
-        html_output = self.template.render(context)
+        html_data = self.template.render(context)
 
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(html_output)
-        
-        print(f"Report successfully saved to: {output_path}")
+        with open(output_html, 'w', encoding='utf-8') as f:
+            f.write(html_data)
 
         self._copy_assets(output_dir)
+        print(f"Report generated successfully at: {output_html}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate SideSeeing HTML report from dataset directory.")
+
+    parser.add_argument("-i", "--input_dir", help="Path to the SideSeeing dataset directory.", required=True)
+    parser.add_argument("-o", "--output_dir", help="Path to save the generated HTML report.", default="output")
+    parser.add_argument("-t", "--title", help="Report title.", default=None)
+    parser.add_argument("-g", "--generate_metadata", help="Generate metadata.csv if not present.", action="store_true")
+
+    args = parser.parse_args()
+
+    r = Report()
+    r.generate_report(args.input_dir, args.output_dir, args.title, args.generate_metadata)

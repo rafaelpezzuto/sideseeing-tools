@@ -1,0 +1,120 @@
+<div id="summary" class="section active">
+    <h2>Dataset Overview</h2>
+    <p>Overview of the data extracted from the directory.</p>
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Samples</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_instances }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Duration (H:M:S)</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_duration_human }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Dataset Size</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_size_gb | round(2) }} GB</div> 
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Distance Covered</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.2f"|format(summary.total_distance_km) }} km</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-12 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Data Collection Location</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="summary-overview-map" style="height: 500px; border-radius: 0 0 0.35rem 0.35rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Samples and Details</h6>
+                </div>
+                <div class="card-body">
+                    
+                    {% if not summary.sample_details %}
+                        <p class="text-muted">No sample details found.</p>
+                    {% else %}
+                        <div class="accordion" id="sampleAccordion">
+                            {% for sample in summary.sample_details %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-{{ loop.index }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" ...>
+                                        <span class="text-truncate" title="{{ sample.name }}">{{ sample.name }}</span>
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse" ...>
+                                    <div class="accordion-body">
+                                        <ul class="list-group list-group-flush">
+                                            <li class="list-group-item"><strong>Device:</strong> {{ sample.device_str }}</li>
+                                            
+                                            <li class="list-group-item"><strong>Duration:</strong> {{ sample.duration_human }}</li>
+                                            <li class="list-group-item"><strong>Period:</strong> {{ sample.period_str }}</li>
+
+                                            <li class="list-group-item"><strong>Video:</strong> {{ sample.video_str }}</li>
+                                            <li class="list-group-item">
+                                                <strong>Basic Data:</strong>
+                                                {% for data_type in sample.available_data_basic %}
+                                                    <span class="badge bg-primary me-1">{{ data_type }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark">None</span>
+                                                {% endfor %}
+                                                
+                                                {% if sample.available_data_sensors %}
+                                                    <span class="badge bg-primary me-1">Sensors</span>
+                                                {% endif %}
+                                            </li>
+                                            
+                                            {% if sample.available_data_sensors %}
+                                            <li class="list-group-item">
+                                                <details>
+                                                    <summary><strong>Available Sensors ({{ sample.available_data_sensors|length }})</strong></summary>
+                                                    <div class="mt-2">
+                                                        {% for sensor in sample.available_data_sensors %}
+                                                            <span class="badge bg-secondary me-1 mb-1">{{ sensor }}</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </details>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

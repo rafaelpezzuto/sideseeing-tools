@@ -3,5 +3,7 @@ build
 *.egg-info
 __pycache__
 *.pyc
-out
+src/out
 wifizone
+src/sideseeing_tools/templates_old
+src/tmp

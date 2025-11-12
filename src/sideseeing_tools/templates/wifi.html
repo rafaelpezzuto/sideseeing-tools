@@ -1,0 +1,46 @@
+<div id="wifi" class="section">
+    <h2>Wi-Fi Heatmaps</h2>
+    <p>Add a sample to visualize the heatmaps of the detected SSIDs.</p>
+    
+    <div class="row mb-3 align-items-end">
+        <div class="col-md-6">
+            <label for="wifi-select" class="form-label"><strong>1. Select Sample:</strong></label>
+            <select class="form-select" id="wifi-select">
+                <option selected disabled value="">-- Choose a sample to add --</option>
+                {% for instance_name, json_path in sections.wifi.items() %}
+                    <option value="{{ json_path }}">{{ instance_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" id="add-wifi-sample-btn">Add</button>
+            <button class="btn btn-danger" id="reset-wifi-view-btn">Clear All</button>
+        </div>
+    </div>
+
+    <div class="mb-3" id="wifi-ssid-controls-container" style="display: none;">
+        <label class="form-label"><strong>2. Select SSID:</strong></label>
+        <div class="border rounded p-3" id="wifi-ssid-list-container" style="max-height: 300px; overflow-y: auto;">
+            </div>
+    </div>
+
+    <div class="mb-3" id="wifi-band-controls-container" style="display: none;">
+        <label class="form-label"><strong>3. Plot Wi-Fi Band:</strong></label>
+        <div class="border rounded p-3" id="wifi-band-buttons-list">
+            </div>
+    </div>
+
+    <div id="wifi-map-container" class="mt-4 row">
+        
+        <div class="text-center text-muted" id="wifi-map-placeholder">
+            <p class="fs-5">Add a sample to get started.</p>
+        </div>
+
+        <div class="loading-spinner d-none justify-content-center p-5" id="wifi-map-spinner">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading data...</span>
+            </div>
+        </div>
+
+    </div>
+</div>

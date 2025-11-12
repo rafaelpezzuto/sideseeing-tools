@@ -51,7 +51,6 @@ img.img-fluid {
     gap: 10px; 
 }
 
-/* A caixa clicável para o SSID */
 .ssid-selectable-box {
     display: block;
     padding: 10px 15px;
