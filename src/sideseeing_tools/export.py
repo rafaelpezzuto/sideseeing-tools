@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from jinja2 import Environment, PackageLoader
-from math import radians, sin, cos, sqrt, asin
 from typing import List, Dict, Optional
 
 import argparse
@@ -11,6 +10,7 @@ import pandas as pd
 import shutil
 
 from . import sideseeing, utils
+
 
 class Report:
 
