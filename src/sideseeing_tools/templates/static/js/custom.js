@@ -28,7 +28,7 @@ let activeMaps = {};
  * @param {string} sectionId O ID da div da seção a ser mostrada.
  */
 function showSection(sectionId) {
-    // 1. Esconde todas as seções e desativa todos os links
+    // 1. Hide all sections and deactivate all sidebar links
     document.querySelectorAll('.section').forEach(section => {
         section.classList.remove('active');
     });
@@ -36,7 +36,7 @@ function showSection(sectionId) {
         link.classList.remove('active');
     });
 
-    // 2. Mostra a seção e ativa o link correspondente
+    // 2. Show the section and activate the corresponding link
     const activeSection = document.getElementById(sectionId);
     if (!activeSection) return;
     activeSection.classList.add('active');
@@ -46,7 +46,7 @@ function showSection(sectionId) {
         activeLink.classList.add('active');
     }
 
-    // 3. Redimensiona gráficos e mapas
+    // 3. Resize charts and maps
     // Usa um pequeno atraso (setTimeout) para garantir que a transição
     // do CSS (display: none -> block) tenha terminado
     // antes de tentar redimensionar os plots.
@@ -109,7 +109,7 @@ function initSummaryTab(summaryData) {
             const marker = L.marker(latLng);
             
             // ATUALIZAÇÃO 1: Adiciona o popup com o nome da amostra
-            marker.bindPopup(`<b>Amostra:</b><br>${sampleName}`); 
+            marker.bindPopup(`<b>Sample:</b><br>${sampleName}`); 
 
             // ATUALIZAÇÃO 2: Lógica de clique atualizada
             marker.on('click', function(e) {
@@ -146,7 +146,7 @@ function initSummaryTab(summaryData) {
                 
                 // ATUALIZAÇÃO 3: Troca do ícone
                 container.innerHTML = '&#x27f3;';
-                container.title = "Recentralizar Mapa";
+                container.title = "Recenter Map";
                 
                 container.style.backgroundColor = 'white';
                 container.style.width = '30px';
@@ -173,12 +173,12 @@ function initSummaryTab(summaryData) {
 
         new RecenterControl().addTo(overviewMap);
 
-    } catch (e) { console.error("Erro ao renderizar mapa de visão geral:", e); }
+    } catch (e) { console.error("Error rendering overview map:", e); }
 }
 
 /**
  * =================================================================
- * PONTO DE ENTRADA PRINCIPAL (DOM PRONTO)
+ * MAIN ENTRY POINT (DOM READY)
  * =================================================================
  */
 document.addEventListener('DOMContentLoaded', function() {
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Evita recarregar a mesma amostra
         if (loadedSamplesData[jsonPath]) {
-            alert("Esta amostra já foi adicionada.");
+            alert("This sample has already been added.");
             return;
         }
 
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function populateSensorCheckboxes(jsonPath, sampleName, chartsData) {
         if (chartsData.length === 0) {
-            checkboxesList.innerHTML += `<p class="text-muted">Nenhum sensor encontrado na amostra ${sampleName}.</p>`;
+            checkboxesList.innerHTML += `<p class="text-muted">No sensors found in sample ${sampleName}.</p>`;
             return;
         }
 
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const checkedBoxes = checkboxesList.querySelectorAll('.sensor-toggle-checkbox:checked');
 
         if (checkedBoxes.length === 0) {
-            chartsContainer.innerHTML = '<p class="text-center text-muted fs-5">Nenhum sensor selecionado para exibição.</p>';
+            chartsContainer.innerHTML = '<p class="text-center text-muted fs-5">No sensor selected for display.</p>';
             return;
         }
 
@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newLayout = { ...chartData.layout };
                 const originalTitle = newLayout.title || 'Sensor';
                 const sampleName = sample.name;
-                newLayout.title = `${originalTitle}<br><span style="font-size:0.8em; color: #555;">Amostra: ${sampleName}</span>`;
+                newLayout.title = `${originalTitle}<br><span style="font-size:0.8em; color: #555;">Sample: ${sampleName}</span>`;
 
                 // Plota o gráfico
                 Plotly.newPlot(chartDiv, chartData.data, newLayout, { responsive: true });
@@ -386,10 +386,10 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Error} error O objeto de erro.
      */
     function handleFetchError(error) {
-        console.error('Erro ao carregar dados do sensor:', error);
+        console.error('Error loading sensor data:', error);
         spinner.classList.add('d-none');
         spinner.classList.remove('d-flex');
-        chartsContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
+        chartsContainer.innerHTML = `<div class="alert alert-danger">Failed to load sample data.</div>`;
     }
 
 /**
@@ -627,9 +627,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 wifiSsidControlsContainer.style.display = 'block';
             })
             .catch(err => {
-                console.error("Erro ao carregar dados Wi-Fi:", err);
+                console.error("Error loading Wi-Fi data:", err);
                 wifiSpinner.classList.add('d-none');
-                wifiMapContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
+                wifiMapContainer.innerHTML = `<div class="alert alert-danger">Failed to load sample data.</div>`;
             });
     }
 
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </button>
             <button class="btn btn-sm btn-outline-secondary mb-2 wifi-hide-all-btn"
                     data-list-id="${listId}">
-                Esconder Todos
+                Hide All
             </button>
         `;
 
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
         groupHTML += `<div id="${listId}" class="wifi-ssid-list-grid">`;
 
         if (ssids.length === 0) {
-            groupHTML += `<p class="text-muted">Nenhum SSID encontrado na amostra ${sampleName}.</p>`;
+            groupHTML += `<p class="text-muted">No SSID found in sample ${sampleName}.</p>`;
         } else {
             ssids.sort().forEach(ssid => {
                 
@@ -752,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 2. Encontra os dados no cache
         const sample = loadedWifiData[jsonPath];
         if (!sample || !sample.data[ssid]) {
-            console.error("Dados do SSID não encontrados no cache.", ssid, sample);
+            console.error("SSID data not found in cache.", ssid, sample);
             return;
         }
         
@@ -820,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Formato: [[lat, lon, level], ...]
         const heatData = sampleData.data[ssid][band];
         if (!heatData || heatData.length === 0) {
-            alert(`Nenhum dado encontrado para ${ssid} (${band}).`);
+            alert(`No data found for ${ssid} (${band}).`);
             return;
         }
         
@@ -847,13 +847,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         mapWrapper.appendChild(title);
         mapWrapper.appendChild(mapInnerDiv);
-
-        // MUDANÇA: Removemos o botão HTML antigo daqui.
-        // O código 'const closeBtn = ...' foi removido.
-
-        // 3. Lógica de Plotagem
         
-        // 3a. Calcular centro e normalizar dados
+        // 3. Plotting Logic
+        
+        // 3a. Calculate center and normalize data
         let centerLat = 0;
         let centerLon = 0;
         const levels = heatData.map(p => p[2]);
@@ -891,19 +888,19 @@ document.addEventListener('DOMContentLoaded', function() {
             blur: 10,   
         }).addTo(map);
 
-        // 4. MUDANÇA: Adiciona o controle de "Fechar" (estilo Leaflet)
+        // 4. CHANGE: Adds the "Close" control (Leaflet style)
         const CloseControl = L.Control.extend({
             options: {
-                position: 'topright' // Posição do controle
+                position: 'topright' // Control position
             },
             onAdd: function(map) {
-                // Cria o container do botão
+                // Creates the button container
                 const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
                 
-                container.innerHTML = '&times;'; // 'X' (símbolo HTML)
-                container.title = "Fechar este mapa";
+                container.innerHTML = '&times;'; // 'X' (HTML symbol)
+                container.title = "Close this map";
                 
-                // Estilos (iguais ao da aba Resumo)
+                // Styles (same as the Summary tab)
                 container.style.backgroundColor = 'white';
                 container.style.width = '30px';
                 container.style.height = '30px';
@@ -913,12 +910,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 container.style.fontWeight = 'bold';
                 container.style.cursor = 'pointer';
 
-                // Previne que o clique se propague para o mapa
+                // Prevents click from propagating to the map
                 L.DomEvent.disableClickPropagation(container);
 
-                // Adiciona o listener de clique
+                // Adds the click listener
                 L.DomEvent.on(container, 'click', function() {
-                    // Chama a nossa nova função de fechar
+                    // Calls our new close function
                     handleCloseMap(mapId); 
                 });
 
@@ -926,13 +923,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Adiciona o novo controle ao mapa
+        // Adds the new control to the map
         new CloseControl().addTo(map);
 
-        // 5. Salva a instância do mapa no cache global
+        // 5. Saves the map instance in the global cache
         activeMaps[mapId] = map;
 
-        // 6. Força o mapa a redimensionar
+        // 6. Forces the map to resize
         setTimeout(() => map.invalidateSize(), 10);
     }
 
@@ -965,7 +962,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Manipula o clique no botão "Adicionar Rota" (Geo).
+     * Handles the click on the "Add Route" button (Geo).
      * Carrega o arquivo JSON da amostra selecionada, armazena em cache,
      * e chama a função para renderizar o mapa da rota.
      */
@@ -977,7 +974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const sampleName = selectedOption.textContent;
 
         if (loadedGeoData[jsonPath]) {
-            alert("Esta rota já foi adicionada.");
+            alert("This route has already been added.");
             // Rola a tela até o mapa existente
             const mapId = `map-geo-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
             const mapElement = document.getElementById(mapId);
@@ -993,7 +990,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch(jsonPath)
             .then(response => {
-                if (!response.ok) throw new Error(`Falha ao carregar ${jsonPath}`);
+                if (!response.ok) throw new Error(`Failed to load ${jsonPath}`);
                 return response.json();
             })
             .then(geoData => {
@@ -1007,9 +1004,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 renderGeoMap(jsonPath, sampleName, geoData);
             })
             .catch(err => {
-                console.error("Erro ao carregar dados GEO:", err);
+                console.error("Error loading GEO data:", err);
                 geoSpinner.classList.add('d-none');
-                geoMapContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados da amostra.</div>`;
+                geoMapContainer.innerHTML = `<div class="alert alert-danger">Failed to load sample data.</div>`;
             });
     }
 
@@ -1046,33 +1043,32 @@ document.addEventListener('DOMContentLoaded', function() {
         const { center, path } = geoData;
 
         if (!path || path.length === 0) {
-            alert(`Nenhum dado de rota encontrado para ${sampleName}.`);
+            alert(`No route data found for ${sampleName}.`);
             return;
         }
 
-        // ID único para o mapa
+        // Unique ID for the map
         const mapId = `map-geo-${sampleName.replace(/[^a-zA-Z0.9]/g, '_')}`;
 
         // 1. Cria os contêineres do mapa (Wrapper e Div interna)
         const mapWrapper = document.createElement('div');
         mapWrapper.id = mapId;
-        mapWrapper.className = 'col-12 col-lg-6 mb-4'; // Layout de bootstrap
+        mapWrapper.className = 'col-12 col-lg-6 mb-4'; // Bootstrap layout
         
         const title = document.createElement('h5');
         title.className = 'text-center';
-        title.innerHTML = `Rota: ${sampleName}`;
+        title.innerHTML = `Route: ${sampleName}`;
         
         const mapInnerDiv = document.createElement('div');
-        mapInnerDiv.className = 'leaflet-map-container'; // Usado para redimensionamento
-        mapInnerDiv.setAttribute('data-map-id', mapId);  // Link para o cache 'activeMaps'
-
+        mapInnerDiv.className = 'leaflet-map-container'; // Used for resizing
+        mapInnerDiv.setAttribute('data-map-id', mapId);  // Link to the 'activeMaps' cache
         mapWrapper.appendChild(title);
         mapWrapper.appendChild(mapInnerDiv);
         geoMapContainer.appendChild(mapWrapper);
 
-        // 2. Criar o mapa Leaflet
-        // Centraliza usando o ponto central calculado em Python
-        const map = L.map(mapInnerDiv).setView(center, 16); // Zoom inicial
+        // 2. Create the Leaflet map
+        // Center using the point calculated in Python
+        const map = L.map(mapInnerDiv).setView(center, 16); // Initial zoom
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -1085,11 +1081,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 4. Adicionar marcadores de Início e Fim
         L.marker(path[0]).addTo(map)
-            .bindPopup('<b>Início da Rota</b>')
+            .bindPopup('<b>Route start</b>')
             .openPopup();
             
         L.marker(path[path.length - 1]).addTo(map)
-            .bindPopup('<b>Fim da Rota</b>');
+            .bindPopup('<b>Route end</b>');
 
         // 5. Ajustar o zoom para caber a rota inteira
         map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
@@ -1101,4 +1097,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => map.invalidateSize(), 10);
     }
 
-}); // Fim do 'DOMContentLoaded'
+});
