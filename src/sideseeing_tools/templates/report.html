@@ -18,6 +18,9 @@
     <script src="static/plugins/leaflet/leaflet.js"></script>
     <script src="static/plugins/leaflet/leaflet-heat.js"></script>
 
+    <!-- Font Awesome -->
+    <link href="static/plugins/awesome/css/all.min.css" rel="stylesheet">
+
     <!-- Custom libs -->
     <link rel="stylesheet" href="static/css/custom.css">
     <script src="static/js/custom.js"></script>
@@ -29,36 +32,54 @@
         <hr>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="#" onclick="showSection('summary')">Summary</a>
+                <a class="nav-link active" href="#" onclick="showSection('summary')">
+                    <span class="fas fa-chart-bar me-2"></span>
+                    Summary
+                </a>
             </li>
 
             {% if sections.geo %}
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('geo')">Geospatial Data</a>
+                <a class="nav-link" href="#" onclick="showSection('geo')">
+                    <span class="fas fa-map-marker-alt me-2"></span>
+                    Geospatial Data
+                </a>
             </li>
             {% endif %}
 
             {% if sections.sensor %}
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('sensor')">Sensor Data</a>
+                <a class="nav-link" href="#" onclick="showSection('sensor')">
+                    <span class="fas fa-microchip me-2"></span>
+                    Sensor Data
+                </a>
             </li>
             {% endif %}
 
             {% if sections.wifi %}
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('wifi')">Wi-Fi Data</a>
+                <a class="nav-link" href="#" onclick="showSection('wifi')">
+                    <span class="fas fa-wifi me-2"></span>
+                    Wi-Fi Data
+                </a>
             </li>
             {% endif %}
 
             {% if sections.cell %}
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('cell')">Cell Data</a>
+                <a class="nav-link" href="#" onclick="showSection('cell')">
+                    <span class="fas fa-mobile-alt me-2"></span>
+                    Cell Data
+                </a>
             </li>
             {% endif %}
 
             {% if sections.images %}
             <li class="nav-item">
-                <a class="nav-link" href="#" onclick="showSection('images')">Images</a>
+                <a class="nav-link" href="#" onclick="showSection('images')">
+                    <span class="fas fa-image me-2"></span>
+                    Images
+                </a>
             </li>
             {% endif %}
         </ul>
