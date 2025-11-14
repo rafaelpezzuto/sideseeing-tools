@@ -126,7 +126,7 @@ class Report:
             try:
                 start_str = pd.to_datetime(meta.get('media_start_time')).strftime('%d/%m/%Y %H:%M')
                 stop_str = pd.to_datetime(meta.get('media_stop_time')).strftime('%d/%m/%Y %H:%M')
-                details['period_str'] = f"{start_str} até {stop_str}"
+                details['period_str'] = f"{start_str} until {stop_str}"
             except Exception:
                 details['period_str'] = "N/A"
             
