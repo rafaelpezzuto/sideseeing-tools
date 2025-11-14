@@ -303,19 +303,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const sampleGroup = document.createElement('div');
-        sampleGroup.className = 'sample-checkbox-group mb-2 p-2 border rounded';
+        sampleGroup.className = 'sample-checkbox-group mb-3 p-3 border-bottom border-3';
 
-        // Título do grupo
-        let groupHTML = `<strong class="d-block mb-2">${sampleName}</strong>`;
+        // Group title
+        let groupHTML = `<strong class="d-block mb-3">${sampleName}</strong>`;
+        
+        // Flex container for checkboxes
+        groupHTML += `<div class="d-flex flex-wrap gap-3">`;
 
-        // Cria um checkbox para cada sensor (gráfico)
+        // Create a checkbox for each sensor (chart)
         chartsData.forEach((chart, index) => {
-            // Extrai o nome do sensor do título do gráfico
             const title = chart.layout.title ? chart.layout.title.replace(/<b>Sensor:<\/b>\s*/i, '') : `Sensor ${index + 1}`;
             const chartId = chart.chart_id;
             
             groupHTML += `
-                <div class="form-check form-check-inline">
+                <div class="form-check" style="min-width: 150px;">
                     <input class="form-check-input sensor-toggle-checkbox" 
                            type="checkbox" value="${chartId}" id="chk-${chartId}"
                            data-sample-path="${jsonPath}" data-sensor-name="${title}"> 
@@ -323,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>`;
         });
 
+        groupHTML += `</div>`; // Close the flex container
         sampleGroup.innerHTML = groupHTML;
         checkboxesList.appendChild(sampleGroup);
     }
