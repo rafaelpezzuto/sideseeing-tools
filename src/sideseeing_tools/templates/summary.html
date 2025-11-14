@@ -59,65 +59,81 @@
 
     <div class="row">
         <div class="col-lg-12 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Samples and Details</h6>
+            <div class="card shadow h-100">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Dataset Samples</h6>
                 </div>
                 <div class="card-body">
-                    
                     {% if not summary.sample_details %}
                         <p class="text-muted">No sample details found.</p>
                     {% else %}
-                        <div class="accordion" id="sampleAccordion">
-                            {% for sample in summary.sample_details %}
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="heading-{{ loop.index }}">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" ...>
-                                        <span class="text-truncate" title="{{ sample.name }}">{{ sample.name }}</span>
-                                    </button>
-                                </h2>
-                                <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse" ...>
-                                    <div class="accordion-body">
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item"><strong>Device:</strong> {{ sample.device_str }}</li>
-                                            
-                                            <li class="list-group-item"><strong>Duration:</strong> {{ sample.duration_human }}</li>
-                                            <li class="list-group-item"><strong>Period:</strong> {{ sample.period_str }}</li>
-
-                                            <li class="list-group-item"><strong>Video:</strong> {{ sample.video_str }}</li>
-                                            <li class="list-group-item">
-                                                <strong>Basic Data:</strong>
-                                                {% for data_type in sample.available_data_basic %}
-                                                    <span class="badge bg-primary me-1">{{ data_type }}</span>
-                                                {% else %}
-                                                    <span class="badge bg-light text-dark">None</span>
-                                                {% endfor %}
-                                                
-                                                {% if sample.available_data_sensors %}
-                                                    <span class="badge bg-primary me-1">Sensors</span>
-                                                {% endif %}
-                                            </li>
-                                            
+                        <div class="table-responsive">
+                            <table class="table caption-top table-bordered table-hover">
+                                <caption class="m-2">List of samples collected in the dataset.</caption>
+                                <thead class="table-group-divider table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th class="text-nowrap">Name</th>
+                                        <th class="text-nowrap">Duration</th>
+                                        <th class="text-nowrap">Period</th>
+                                        <th class="text-nowrap">Video</th>
+                                        <th class="text-nowrap">GPS</th>
+                                        <th class="text-nowrap">Wi-Fi</th>
+                                        <th class="text-nowrap">Cell</th>
+                                        <th class="text-nowrap">Sensors</th>
+                                        <th class="text-nowrap">Device</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sample in summary.sample_details %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ sample.name }}</td>
+                                        <td>{{ sample.duration_human }}</td>
+                                        <td>{{ sample.period_str }}</td>
+                                        <td>{{ sample.video_str }}</td>
+                                        <td>
+                                            {% if sample.gps %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-times-circle text-danger"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if sample.wifi %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-times-circle text-danger"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if sample.cell %}
+                                                <i class="fas fa-check-circle text-success"></i>
+                                            {% else %}
+                                                <i class="fas fa-times-circle text-danger"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
                                             {% if sample.available_data_sensors %}
-                                            <li class="list-group-item">
                                                 <details>
-                                                    <summary><strong>Available Sensors ({{ sample.available_data_sensors|length }})</strong></summary>
+                                                    <summary>{{ sample.available_data_sensors|length }} sensors</summary>
                                                     <div class="mt-2">
                                                         {% for sensor in sample.available_data_sensors %}
                                                             <span class="badge bg-secondary me-1 mb-1">{{ sensor }}</span>
                                                         {% endfor %}
                                                     </div>
                                                 </details>
-                                            </li>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">None</span>
                                             {% endif %}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
+                                        </td>
+                                        <td>{{ sample.device_str }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     {% endif %}
-                    
                 </div>
             </div>
         </div>
