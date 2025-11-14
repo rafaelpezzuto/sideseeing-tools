@@ -115,8 +115,7 @@ class Report:
             except KeyError:
                 continue
 
-            details = {}
-            available_data_basic = []
+            details = {"wifi": False, "cell": False, "gps": False}
             available_data_sensors = []
             
             details['name'] = instance.name
@@ -152,9 +151,11 @@ class Report:
             # --- Sensor Availability Check ---
 
             if instance.geolocation_points is not None and not instance.geolocation_points.empty:
-                available_data_basic.append('GPS')
+                details['gps'] = True
             if instance.wifi_networks is not None and not instance.wifi_networks.empty:
-                available_data_basic.append('Wi-Fi')
+                details['wifi'] = True
+            if instance.cell_networks is not None and not instance.cell_networks.empty:
+                details['cell'] = True
 
             for sensor_name in sorted_sensor_types:
                 for axis in ['sensors1', 'sensors3', 'sensors6']: 
@@ -163,7 +164,6 @@ class Report:
                         available_data_sensors.append(sensor_name)
                         break 
             
-            details['available_data_basic'] = available_data_basic
             details['available_data_sensors'] = available_data_sensors
             sample_details.append(details)
         
