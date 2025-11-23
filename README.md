@@ -18,6 +18,7 @@ This project is licensed under the MIT License. For more details, please refer t
   - [Get a Random Sample](#get-a-random-sample)
   - [Check Available Sensors](#check-available-sensors)
   - [Get Sensor Data](#get-sensor-data)
+  - [Get Network Data](#get-network-data)
   - [Extract a Snippet](#extract-a-snippet)
   - [Iterate Over Samples](#iterate-over-samples)
   - [Plotting Data](#plotting-data)
@@ -112,6 +113,39 @@ print(accel_data.head())
 |  0 | 2024-03-21 19:33:01.550000 | 9.34247 | -0.270545 | 3.10767 |      0     |
 |  1 | 2024-03-21 19:33:01.561000 | 9.51725 | -0.347159 | 3.00233 |      0.011 |
 |  2 | 2024-03-21 19:33:01.571000 | 9.46458 | -0.407014 | 2.81079 |      0.021 |
+
+### Get Network Data
+You can also access processed Wi-Fi and Cellular network data from an instance.
+
+#### Wi-Fi Networks (`.wifi_networks`)
+```python
+wifi_df = my_instance.wifi_networks
+print(wifi_df.head())
+```
+| Datetime UTC | SSID | BSSID | level | frequency | standard | Time (s) |
+|:---|:---|:---|---:|---:|:---|---:|
+| 2025-09-16 13:33:43.844 | MyWifiAP-5G | aa:bb:cc:dd:ee:01 | -87 | 5745 | 11ac | 0.000 |
+| 2025-09-16 13:33:43.844 | Home-WiFi-2.4G | aa:bb:cc:dd:ee:02 | -79 | 2437 | 11n | 0.000 |
+| 2025-09-16 13:33:43.844 | Public-WiFi | aa:bb:cc:dd:ee:03 | -74 | 2412 | 11n | 0.000 |
+| 2025-09-16 13:33:43.844 | Home-WiFi-5G | aa:bb:cc:dd:ee:04 | -88 | 5180 | 11ac | 0.000 |
+| 2025-09-16 13:33:43.844 | Car-Hotspot | aa:bb:cc:dd:ee:05 | -73 | 5745 | 11ac | 0.000 |
+
+#### Cellular Networks (`.cell_networks`)
+```python
+cell_df = my_instance.cell_networks
+print(cell_df.head())
+```
+The cellular network data contains many columns. Here is a sample:
+<details>
+<summary>Click to expand cellular network data table</summary>
+
+| Datetime UTC | timestamp | registered | connection_status | lac | cid | psc | uarfcn | mcc | mnc | ss | alpha_long | alpha_short | ber | rscp | ecno | level | Time (s) |
+|:---|:---|:---|---:|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|---:|---:|
+| 2025-09-16 13:33:43.850 | 347823809967245 | True | 1 | 30121 | 12345678 | 361 | 4414 | 724 | 05 | -61 | Operator BR | Op BR | 99 | -24 | 0 | 4 | 0.000 |
+| 2025-09-16 13:33:43.850 | 347823809967245 | False | 0 | 30122 | 87654321 | 362 | 4415 | 724 | 06 | -75 | Operator B | Op B | 99 | -30 | -2 | 3 | 0.000 |
+| 2025-09-16 13:33:43.850 | 347823809967245 | False | 0 | 30121 | 12345679 | 363 | 4414 | 724 | 05 | -80 | Operator BR | Op BR | 99 | -35 | -4 | 2 | 0.000 |
+
+</details>
 
 ### Extract a Snippet
 Extract a segment of video and sensor data.
