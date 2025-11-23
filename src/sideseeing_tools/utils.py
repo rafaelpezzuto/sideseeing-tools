@@ -7,9 +7,11 @@ import cv2
 import numpy as np
 import pandas as pd
 import reverse_geocode
+
+from datetime import timedelta
 from math import radians, sin, cos, sqrt, asin
 
-from .constants import CELL_SNIPPET_HEADER, WIFI_SNIPPET_HEADER
+from .constants import CELL_SNIPPET_HEADER
 
 
 def load_csv_data(path: str, fieldnames: list, delimiter=','):
@@ -55,7 +57,23 @@ def extract_media_stop_time(metadata: dict):
     return video_stop_time or media_stop_time
 
 
-def generate_metadata(iterator, datetime_format: str):
+def format_location_to_string(location_data: dict) -> str:
+    """
+    Formats a location dictionary into a single string.
+    """
+    if not location_data or all(value == 'Unknown' for value in location_data.values()):
+        return 'Unknown'
+
+    parts = []
+    for k in ["country", "state", "city", "street"]:
+        v = location_data.get(k, "Unknown")
+        if v != "Unknown":
+            parts.append(v)
+
+    return ', '.join(parts)
+
+
+def generate_metadata(iterator, datetime_format: str, google_api_key: str = None):
     items = []
 
     for i in iterator:
