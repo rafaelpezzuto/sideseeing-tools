@@ -1,141 +1,83 @@
-<div id="summary" class="section active">
-    <h2>{{ title }}</h2>
-    <h3 class="text-muted">Dataset Overview</h3>
-    <p>
-        This website provides a comprehensive report of the {{ title }} dataset, summarizing key statistics and visualizations.
-        Every sensor data type collected during the data acquisition process is analyzed and presented in dedicated sections.
-        For more information about SideSeeing, visit <a href="https://sites.usp.br/sideseeing" target="_blank">https://sites.usp.br/sideseeing</a>.
-    </p>
-    <div class="row">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Samples</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_instances }}</div>
-                </div>
+<div id="summary-section" class="section-content active max-w-7xl mx-auto space-y-8">
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="p-3 rounded-lg text-white bg-blue-500"><i data-lucide="file-text"></i></div>
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Total Samples</p>
+                <p class="text-2xl font-bold text-gray-900">{{ summary.total_instances }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="p-3 rounded-lg text-white bg-emerald-500"><i data-lucide="clock"></i></div>
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Total Duration</p>
+                <p class="text-2xl font-bold text-gray-900">{{ summary.total_duration_human }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="p-3 rounded-lg text-white bg-violet-500"><i data-lucide="database"></i></div>
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Dataset Size</p>
+                <p class="text-2xl font-bold text-gray-900">{{ "%.2f"|format(summary.total_size_gb) }} GB</p>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="p-3 rounded-lg text-white bg-orange-500"><i data-lucide="map-pin"></i></div>
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Distance</p>
+                <p class="text-2xl font-bold text-gray-900">{{ "%.2f"|format(summary.total_distance_km) }} km</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Samples Overview Map</h2>
+            <p class="text-sm text-gray-500">Central point of each collected sample.</p>
+        </div>
+        <div id="map-wrapper" class="p-6 relative bg-gray-100 rounded-b-xl h-[432px]">
+            <div id="summary-overview-map" class="w-full h-96 rounded-lg z-10"></div>
+        </div>
+    </section>
+
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+        <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800">Dataset Samples</h2>
+                <p class="text-sm text-gray-500">List of collected routes</p>
+            </div>
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size="18"></i>
+                <input
+                    type="text"
+                    id="searchInput"
+                    onkeyup="filterTable()"
+                    placeholder="Search routes..."
+                    class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+                >
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Duration (H:M:S)</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_duration_human }}</div>
-                </div>
-            </div>
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-sm text-gray-600" id="samplesTable">
+                <thead class="bg-gray-50 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-4">ID</th>
+                        <th class="px-6 py-4">Sample Name</th>
+                        <th class="px-6 py-4 text-right">Distance (km)</th>
+                        <th class="px-6 py-4 text-right">Duration (HH:MM:SS)</th>
+                        <th class="px-6 py-4 text-right">Video Frames</th>
+                        <th class="px-6 py-4 text-center">Video Resolution</th>
+                        <th class="px-6 py-4 text-center">Collection Date</th>
+                        <th class="px-6 py-4 text-center">Sensors</th>
+                        <th class="px-6 py-4">Device</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="tableBody"></tbody>
+            </table>
         </div>
-        
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Dataset Size</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_size_gb | round(2) }} GB</div> 
-                </div>
-            </div>
+        <div class="p-4 border-t border-gray-100 text-center">
+            <p class="text-xs text-gray-400" id="resultCount">Loading...</p>
         </div>
-        
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Distance Covered</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.2f"|format(summary.total_distance_km) }} km</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-xl-12 mb-4">
-            <div class="card shadow h-100">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Data Collection Location</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div id="summary-overview-map" style="height: 500px; border-radius: 0 0 0.35rem 0.35rem;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-12 mb-4">
-            <div class="card shadow h-100">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Dataset Samples</h6>
-                </div>
-                <div class="card-body">
-                    {% if not summary.sample_details %}
-                        <p class="text-muted">No sample details found.</p>
-                    {% else %}
-                        <div class="table-responsive">
-                            <table class="table caption-top table-bordered table-hover">
-                                <caption class="m-2">List of samples collected in the dataset.</caption>
-                                <thead class="table-group-divider table-light">
-                                    <tr>
-                                        <th>#</th>
-                                        <th class="text-nowrap">Name</th>
-                                        <th class="text-nowrap">Duration</th>
-                                        <th class="text-nowrap">Period</th>
-                                        <th class="text-nowrap">Video</th>
-                                        <th class="text-nowrap">GPS</th>
-                                        <th class="text-nowrap">Wi-Fi</th>
-                                        <th class="text-nowrap">Cell</th>
-                                        <th class="text-nowrap">Sensors</th>
-                                        <th class="text-nowrap">Device</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for sample in summary.sample_details %}
-                                    <tr>
-                                        <td>{{ loop.index }}</td>
-                                        <td>{{ sample.name }}</td>
-                                        <td>{{ sample.duration_human }}</td>
-                                        <td>{{ sample.period_str }}</td>
-                                        <td>{{ sample.video_str }}</td>
-                                        <td>
-                                            {% if sample.gps %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% else %}
-                                                <i class="fas fa-times-circle text-danger"></i>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if sample.wifi %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% else %}
-                                                <i class="fas fa-times-circle text-danger"></i>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if sample.cell %}
-                                                <i class="fas fa-check-circle text-success"></i>
-                                            {% else %}
-                                                <i class="fas fa-times-circle text-danger"></i>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if sample.available_data_sensors %}
-                                                <details>
-                                                    <summary>{{ sample.available_data_sensors|length }} sensors</summary>
-                                                    <div class="mt-2">
-                                                        {% for sensor in sample.available_data_sensors %}
-                                                            <span class="badge bg-secondary me-1 mb-1">{{ sensor }}</span>
-                                                        {% endfor %}
-                                                    </div>
-                                                </details>
-                                            {% else %}
-                                                <span class="badge bg-light text-dark">None</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ sample.device_str }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
