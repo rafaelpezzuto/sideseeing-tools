@@ -21,6 +21,7 @@ class SideSeeingDS:
             name='MyDataset', 
             generate_metadata=False,
             extract_media=False,
+            google_api_key=None,
         ):
         print('INFO. Loading data.')
         self.name = name
@@ -33,7 +34,7 @@ class SideSeeingDS:
         self.setup(extract_media)
 
         if generate_metadata:
-            self.metadata(generate_metadata)
+            self.metadata(generate_metadata, google_api_key)
         print('INFO. Done.')
 
     def setup(self, extract_media):
@@ -89,7 +90,7 @@ class SideSeeingDS:
         for k in sorted(self.instances.keys()):
             yield self.instances[k]
 
-    def metadata(self, save=False):
+    def metadata(self, save=False, google_api_key=None):
         if self.size == 0:
             print(f'ERROR. Dataset is empty.')
             return
@@ -100,7 +101,7 @@ class SideSeeingDS:
             df = utils.load_csv_data_with_pandas(path)
 
         if not os.path.exists(path) or save:
-            df = utils.generate_metadata(self.iterator, constants.DATETIME_UTC_FORMAT)
+            df = utils.generate_metadata(self.iterator, constants.DATETIME_UTC_FORMAT, google_api_key)
             utils.save_csv_data_with_pandas(df, path)
 
         return df
@@ -211,7 +212,7 @@ class SideSeeingInstance:
 
         attributes = [
             'consumption', 'geolocation_points', 'geolocation_center', 
-            'sensors3', 'sensors6', 'sensors1', 'cell_networks', 
+            'sensors3', 'sensors6', 'sensors1', 'cell_networks',
             'wifi_networks', 'label', 'video', 'audio', 'gif'
         ]
         for attr in attributes:
