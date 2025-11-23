@@ -1,34 +1,42 @@
-<div id="geo" class="section">
-    <h2>Geospatial Data</h2>
-    <p>Add a sample to view the captured GPS route.</p>
-
-    <div class="row mb-3 align-items-end">
-        <div class="col-md-6">
-            <label for="geo-select" class="form-label"><strong>1. Select Sample:</strong></label>
-            <select class="form-select" id="geo-select">
-                <option selected disabled value="">-- Choose a sample to add --</option>
-                {% for instance_name, json_path in sections.geo.items() %}
-                    <option value="{{ json_path }}">{{ instance_name }}</option>
-                {% endfor %}
-            </select>
+<div id="geo-section" class="section-content max-w-7xl mx-auto space-y-8">
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <i data-lucide="map" class="text-orange-500" size="20"></i>
+                Geolocation
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Interactive map with all collected routes.</p>
         </div>
-        <div class="col-auto">
-            <button class="btn btn-primary" id="add-geo-sample-btn">Add</button>
-            <button class="btn btn-danger" id="reset-geo-view-btn">Reset</button>
-        </div>
-    </div>
+        <div class="p-6">
+            <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
+                <div class="flex-grow">
+                    <label for="geo-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>Select Sample:</strong></label>
+                    <select id="geo-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                        <option selected disabled value="">-- Choose a sample to view --</option>
+                        {% if sections.geo %}
+                            {% for instance_name, json_path in sections.geo.items() %}
+                                <option value="{{ json_path }}" data-name="{{ instance_name }}">{{ instance_name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
 
-    <div id="geo-map-container" class="mt-4 row">
-        
-        <div class="text-center text-muted" id="geo-map-placeholder">
-            <p class="fs-5">Add a sample to get started.</p>
-        </div>
-
-        <div class="loading-spinner d-none justify-content-center p-5" id="geo-map-spinner">
-            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Loading data...</span>
+            <div id="geo-map-container" class="mt-4 relative bg-gray-100 rounded-lg overflow-hidden z-10" style="height: 400px;">
+                <div id="geo-map-spinner" class="absolute inset-0 bg-white/75 z-20 hidden items-center justify-center">
+                    <div class="flex flex-col items-center gap-2 text-gray-500">
+                        <i data-lucide="loader-2" class="animate-spin h-8 w-8"></i>
+                        <span class="text-sm font-medium">Loading map data...</span>
+                    </div>
+                </div>
+                <div id="geo-map-placeholder" class="absolute inset-0 flex items-center justify-center z-0">
+                    <div class="text-center text-gray-400">
+                        <i data-lucide="map-pin" class="mx-auto h-12 w-12"></i>
+                        <p class="mt-2 text-lg">Select a sample to get started.</p>
+                    </div>
+                </div>
+                <div id="geo-map" class="w-full h-full z-10"></div>
             </div>
         </div>
-
-    </div>
+    </section>
 </div>
