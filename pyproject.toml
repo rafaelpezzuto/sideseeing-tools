@@ -7,7 +7,7 @@ authors = [
 ]
 description = "A set of tools to load, preprocess and analyze data collected through the MultiSensor Data Collection App"
 readme = "README.md"
-license = "MIT"
+license = { file = "LICENSE" }
 requires-python = ">=3.9"
 dependencies = [
   "decorator",
