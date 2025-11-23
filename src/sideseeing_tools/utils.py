@@ -361,6 +361,9 @@ def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', 
     Converts data into a Pandas.DataFrame and includes a column to represent the duration in seconds of the time series.
     Also returns the count of data points for each sensor axis.
     '''
+    if not data:
+        return pd.DataFrame()
+
     columns = ['Datetime UTC']
 
     if data_type == 'sensor':
