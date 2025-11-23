@@ -506,6 +506,34 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
     
     return snippet
 
+
+def format_duration(seconds: float) -> str:
+        """
+        Converts seconds into a human-like string (H:M:S).
+
+        Args:
+            seconds (float): The duration in seconds.
+
+        Returns:
+            str: A formatted string (e.g., "Xh Ym Zs") or "N/A".
+        """
+        if pd.isna(seconds):
+            return "N/A"
+
+        try:
+            sec = int(seconds)
+
+            td = timedelta(seconds=sec)
+
+            hours = td.days * 24 + td.seconds // 3600
+            minutes = (td.seconds // 60) % 60
+            seconds = td.seconds % 60
+
+            return f"{str(hours).zfill(2)}:{str(minutes).zfill(2)}:{str(seconds).zfill(2)}"
+
+        except Exception:
+            return f"{seconds:.0f}"
+
 def get_dir_size(dir_path: str) -> float:
     """ Calculate the total size of the directory in GB."""
 
@@ -525,6 +553,7 @@ def get_dir_size(dir_path: str) -> float:
     # Convert bytes to GB
     return total_size / (1024**3)
 
+
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     """ Calculate the latitude/longitude distance between two points in km. """
     R = 6371  
@@ -536,4 +565,3 @@ def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * asin(sqrt(a))
     return R * c
-
