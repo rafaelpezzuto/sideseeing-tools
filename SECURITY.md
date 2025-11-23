@@ -2,20 +2,8 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+This project does not yet maintain an official list of supported versions or security-patched releases. Security support will be defined in a future update.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
-
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+To report a vulnerability, open an issue in the repository or contact the project’s official support channel. You will receive an acknowledgment within a few business days, along with updates as the report is reviewed. If the issue is confirmed, we will outline the planned fix and expected timeline.
