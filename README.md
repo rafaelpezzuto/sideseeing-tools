@@ -1,21 +1,47 @@
 # SideSeeing Tools
 
-![Version](https://img.shields.io/badge/version-0.9.1-orange)
+![Version](https://img.shields.io/badge/version-0.10.0-orange)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
 
-SideSeeing Tools is a suite of scripts designed to load, preprocess, and analyze data collected using the MultiSensor Data Collection App. These tools facilitate the extraction and visualization of sensor data, making them valuable for urban informatics research and applications. This project is licensed under the MIT License, allowing for open-source distribution and modification. For more details, please refer to the [LICENSE](LICENSE) file.
+SideSeeing Tools is a suite of scripts designed to load, preprocess, and analyze data collected using the MultiSensor Data Collection App. These tools facilitate the extraction and visualization of sensor data, making them valuable for urban informatics research and applications.
 
-SideSeeing Tools is compatible with Python version 3.9 and above. The tools are designed to work across multiple platforms, including Linux, macOS, and Windows. Here are some of the key features of SideSeeing Tools:
+This project is licensed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file.
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Installation](#installation)
+- [General Usage](#general-usage)
+  - [Create a Dataset](#create-a-dataset)
+  - [Get a Random Sample](#get-a-random-sample)
+  - [Check Available Sensors](#check-available-sensors)
+  - [Get Sensor Data](#get-sensor-data)
+  - [Get Network Data](#get-network-data)
+  - [Extract a Snippet](#extract-a-snippet)
+  - [Iterate Over Samples](#iterate-over-samples)
+  - [Plotting Data](#plotting-data)
+- [Frame Extraction](#frame-extraction)
+  - [Frame Extraction Methods](#frame-extraction-methods)
+  - [Example Usage](#example-usage-of-frame-extraction-methods)
+- [Recommended Folder Structure](#recommended-folder-structure)
+- [Sensor Data Specification](#sensor-data-specification)
+- [SideSeeingInstance Attributes](#list-of-sideseeinginstance-attributesmethods)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [Authors](#authors)
+- [About Us](#about-us)
+
+## Key Features
 
 - **Data Loading**: Easily load data collected using the MultiSensor Data Collection App.
 - **Preprocessing**: Preprocess the data to make it ready for analysis.
 - **Analysis**: Perform various analyses on the data, including extracting and visualizing sensor data.
 - **Visualization**: Generate visual representations of the data, such as plots and maps.
+- **Report Generation**: Create comprehensive HTML reports from your dataset with summaries, maps, and interactive charts.
 - **Frame Extraction**: Extract frames from video files at specified times or positions.
 - **Snippet Extraction**: Extract snippets from video and sensor data for focused analysis.
-
 
 ## Installation
 
@@ -23,347 +49,190 @@ SideSeeing Tools is compatible with Python version 3.9 and above. The tools are 
 pip install sideseeing-tools
 ```
 
-
 ## General Usage
 
-__Create a dataset__
+### Create a Dataset
 ```python
 from sideseeing_tools import sideseeing
 
-ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
+# It is recommended to follow the suggested folder structure
+ds = sideseeing.SideSeeingDS(root_dir='./my-project', subdir='data', name='MyDataset')
 
 # Available iterators
-#   .instances  // Tip: dictionary of instances (key=name, value=SideSeeingInstance)
-#   .iterator   // Tip: for i in ds.iterator: i.name
+# ds.instances  -> Dictionary of instances (key=name, value=SideSeeingInstance)
+# ds.iterator   -> Iterator for the instances
 
 # Available attributes and methods
-#   .metadata() // Tip: generates and prints the dataset metadata
-#   .size       // Tip: shows the number of instances  
-#   .sensors    // Tip: a dictionary containing the names of the available sensors
+# ds.metadata() -> Generates and prints the dataset metadata
+# ds.size       -> Shows the number of instances  
+# ds.sensors    -> A dictionary containing the names of the available sensors
 ```
 
-__Get a random sample from the dataset__
+### Get a Random Sample
 ```python
+# Get a random instance from the dataset
 my_sample = ds.instance
+print(f"Random sample: {my_sample.name}")
 ```
 
-__Check the available sensors by instance__
+### Check Available Sensors
+The `.sensors` attribute shows which sensors are available across all instances.
 ```python
-ds.sensors
-# This command will produce output like this:
-
+# The output shows which instances have data for each sensor type
+print(ds.sensors)
+```
+```json
 {
-    # A key representing the number of available axes
-    'sensors1': {
-        # A key representing the sensor name
-        'lps22h barometer sensor': {
-            # Keys representing the instances where the sensor data is found
-            'FhdFastest#S10e-2024-08-01-10-42-43-354',
-            'FhdGame#S10e-2024-08-01-10-25-08-383',
-            'FhdNormal#S10e-2024-08-01-10-02-18-947',
-            'FhdUi#S10e-2024-08-01-10-13-50-369'
-        },
-        'tcs3407 uncalibrated lux sensor': {
-            'FhdFastest#S10e-2024-08-01-10-42-43-354',
-            ...
-        },
-        ...
+    "sensors1": {
+        "lps22h barometer sensor": {
+            "FhdFastest#S10e-2024-08-01-10-42-43-354",
+            "FhdGame#S10e-2024-08-01-10-25-08-383"
+        }
     },
-    'sensors3': {
-        'ak09918c magnetic field sensor': {...},
-        'bmi160_accelerometer accelerometer non-wakeup': {
-            'FhdFastest#Mia3-2024-08-01-10-42-44-639',
-            'FhdNormal#Mia3-2024-08-01-10-02-22-118',
-            ...
-        },
-        ...
-    },
-    'sensors6': {
-        ...
+    "sensors3": {
+        "ak09918c magnetic field sensor": { ... },
+        "bmi160_accelerometer accelerometer non-wakeup": {
+            "FhdFastest#Mia3-2024-08-01-10-42-44-639",
+            "FhdNormal#Mia3-2024-08-01-10-02-22-118"
+        }
     }
 }
 ```
 
-__Get accelerometer data from the sample__
+### Get Sensor Data
 ```python
-my_sample = ds.instances['FhdNormal#Mia3-2024-08-01-10-02-22-118']
-my_sample_accel_data = my_sample.sensors3['bmi160_accelerometer accelerometer non-wakeup']
-my_sample_accel_data
-```
+# Get a specific instance
+my_instance = ds.instances['FhdNormal#Mia3-2024-08-01-10-02-22-118']
 
+# Get accelerometer data from the instance
+accel_data = my_instance.sensors3['bmi160_accelerometer accelerometer non-wakeup']
+print(accel_data.head())
+```
 |    | Datetime UTC               |       x |         y |       z |   Time (s) |
 |---:|:---------------------------|--------:|----------:|--------:|-----------:|
 |  0 | 2024-03-21 19:33:01.550000 | 9.34247 | -0.270545 | 3.10767 |      0     |
 |  1 | 2024-03-21 19:33:01.561000 | 9.51725 | -0.347159 | 3.00233 |      0.011 |
 |  2 | 2024-03-21 19:33:01.571000 | 9.46458 | -0.407014 | 2.81079 |      0.021 |
-|  3 | 2024-03-21 19:33:01.581000 | 9.35205 | -0.395043 | 2.79164 |      0.031 |
-|  4 | 2024-03-21 19:33:01.590000 | 9.36402 | -0.263362 | 2.77488 |      0.04  |
 
+### Get Network Data
+You can also access processed Wi-Fi and Cellular network data from an instance.
 
-__Extract a snippet from a sample (video and sensor data)__
+#### Wi-Fi Networks (`.wifi_networks`)
 ```python
-my_sample.extract_snippet(
-    start_time=2,                        # Start time of the snippet (in seconds)
-    end_time=17,                         # End time of the snippet (in seconds)
-    output_dir='/home/user/snippet_2_17' # Directory to save the extracted snippet
+wifi_df = my_instance.wifi_networks
+print(wifi_df.head())
+```
+| Datetime UTC | SSID | BSSID | level | frequency | standard | Time (s) |
+|:---|:---|:---|---:|---:|:---|---:|
+| 2025-09-16 13:33:43.844 | MyWifiAP-5G | aa:bb:cc:dd:ee:01 | -87 | 5745 | 11ac | 0.000 |
+| 2025-09-16 13:33:43.844 | Home-WiFi-2.4G | aa:bb:cc:dd:ee:02 | -79 | 2437 | 11n | 0.000 |
+| 2025-09-16 13:33:43.844 | Public-WiFi | aa:bb:cc:dd:ee:03 | -74 | 2412 | 11n | 0.000 |
+| 2025-09-16 13:33:43.844 | Home-WiFi-5G | aa:bb:cc:dd:ee:04 | -88 | 5180 | 11ac | 0.000 |
+| 2025-09-16 13:33:43.844 | Car-Hotspot | aa:bb:cc:dd:ee:05 | -73 | 5745 | 11ac | 0.000 |
+
+#### Cellular Networks (`.cell_networks`)
+```python
+cell_df = my_instance.cell_networks
+print(cell_df.head())
+```
+The cellular network data contains many columns. Here is a sample:
+<details>
+<summary>Click to expand cellular network data table</summary>
+
+| Datetime UTC | timestamp | registered | connection_status | lac | cid | psc | uarfcn | mcc | mnc | ss | alpha_long | alpha_short | ber | rscp | ecno | level | Time (s) |
+|:---|:---|:---|---:|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|---:|---:|
+| 2025-09-16 13:33:43.850 | 347823809967245 | True | 1 | 30121 | 12345678 | 361 | 4414 | 724 | 05 | -61 | Operator BR | Op BR | 99 | -24 | 0 | 4 | 0.000 |
+| 2025-09-16 13:33:43.850 | 347823809967245 | False | 0 | 30122 | 87654321 | 362 | 4415 | 724 | 06 | -75 | Operator B | Op B | 99 | -30 | -2 | 3 | 0.000 |
+| 2025-09-16 13:33:43.850 | 347823809967245 | False | 0 | 30121 | 12345679 | 363 | 4414 | 724 | 05 | -80 | Operator BR | Op BR | 99 | -35 | -4 | 2 | 0.000 |
+
+</details>
+
+### Extract a Snippet
+Extract a segment of video and sensor data.
+```python
+my_instance.extract_snippet(
+    start_time=2,                        # Start time in seconds
+    end_time=17,                         # End time in seconds
+    output_dir='./my-snippet'            # Directory to save the snippet
 )
 ```
+This creates a directory `./my-snippet` with files for video, audio, and all sensor data for the specified time range.
 
-Running the command `extract_snippet` will generate one file for the video (with audio), one file for consumption data, one file for GPS data, one file for each sensor type (single-axis, three-axis, three-axis uncalibrated) and one for each network type (cell, wifi) present in the instance. See an illustrative example in the following file tree.
-
-```text
-home/
-├─ user/
-│  ├─ snippet_2_17/
-|  |  ├─ cell.2_17.csv
-│  │  ├─ consumption.2_17.csv
-│  │  ├─ gps.2_17.csv
-│  │  ├─ sensors.one.2_17.csv
-│  │  ├─ sensors.three.2_17.csv
-│  │  ├─ sensors.three.uncalibrated.2_17.csv
-│  │  ├─ video.2_17.mp4
-│  │  ├─ wifi.2_17.csv
-```
-
-__Extract only video snippets__
-
-It is possible to extract a snippet from a video (and only the video) using the extract_video_snippet function.
+### Iterate Over Samples
 ```python
-from sideseeing_tools import media
-
-# Extract a 15-second snippet from the video, beginning at the 3-second mark and ending at the 18-second mark
-media.extract_video_snippet(
-    source_path=my_sample.video,    # Path to the input mp4 file
-    start_second=3,                 # Start time of the snippet (in seconds)
-    end_second=18,                  # End time of the snippet (in seconds)
-    output_path='my_snippet.mp4'    # Path to save the extracted snippet
-)
+for instance in ds.iterator:
+    print(f"Instance: {instance.name}, Video Path: {instance.video}")
 ```
 
-__Iterate over the samples__
-
-```python
-for i in ds.iterator:
-    print(i.name, i.video)
-```
-
-__Create a plotter__
+### Plotting Data
+The `SideSeeingPlotter` offers various methods to visualize your data.
 ```python
 from sideseeing_tools import plot
 
-plotter = plot.SideSeeingPlotter(ds, taxonomy='/home/user/my-project/taxonomy.csv')
+plotter = plot.SideSeeingPlotter(ds, taxonomy='./my-project/taxonomy.csv')
 
-# Available methods:
-#   .generate_video_for_sensor()
-#   .plot_dataset_cities()
-#   .plot_dataset_map()
-#   .plot_dataset_tags_matrix()
-#   .plot_dataset_tags()
-#   .plot_instance_audio()
-#   .plot_instance_map()
-#   .plot_instance_sensors3_and_audio()
-#   .plot_instance_video_frames_at_times()
-#   .plot_instance_video_frames()
-#   .plot_sensor()
-#   .plot_sensors()
+# Example: Plot a map of all instances in the dataset
+plotter.plot_dataset_map()
+
+# Example: Plot accelerometer and audio data for a specific instance
+my_instance = ds.instances['FhdNormal#Mia3-2024-08-01-10-02-22-118']
+plotter.plot_instance_sensors3_and_audio(
+    instance=my_instance,
+    sensor_name='bmi160_accelerometer accelerometer non-wakeup'
+)
 ```
 
-## Frame Extraction Methods
+## Frame Extraction
 
-The following methods provide flexible and efficient ways to extract frames from video files, either saving them to disk or returning them in memory for immediate use in your applications. While using the methods below, you can opt for saving the frames to disk or returning them in memory.
+You can extract frames from videos either directly through the `media` module or via a `SideSeeingInstance`. Frames can be saved to disk or returned in memory.
 
-__`extract_frames_at_times`__
+### Frame Extraction Methods
+- `extract_frames_at_times`: Extracts frames at a list of specific timestamps (in seconds).
+- `extract_frames_at_positions`: Extracts frames at a list of specific frame numbers.
+- `extract_frames_timespan`: Extracts frames within a given start and end time.
+- `extract_frames_positionspan`: Extracts frames within a given start and end frame number.
+- `extract_frames`: Extracts all frames at a given rate (step).
 
-This method extracts frames from a video file at the specified time points and saves them as image files.
+### Example Usage of Frame Extraction Methods
 
-**Parameters:**
-- `source_path` (str): Path to the source video file.
-- `frame_times` (list): List of time points (in seconds) at which frames should be extracted.
-- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
-- `prefix` (str, optional): Prefix to be added to the frame file names.
-- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
-
-**Returns:**
-- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
-
-__`extract_frames_at_positions`__
-
-This method extracts frames from a video file at the specified frame positions and saves them as image files.
-
-**Parameters:**
-- `source_path` (str): Path to the source video file.
-- `frame_positions` (list): List of frame positions at which frames should be extracted.
-- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
-- `prefix` (str, optional): Prefix to be added to the frame file names.
-- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
-
-**Returns:**
-- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
-
-__`extract_frames_timespan`__
-
-This method extracts frames from a video file within a specified time span and saves them as image files.
-
-**Parameters:**
-- `source_path` (str): Path to the source video file.
-- `start_time` (float): The start time (in seconds) of the time span from which frames should be extracted.
-- `end_time` (float): The end time (in seconds) of the time span from which frames should be extracted.
-- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
-- `step` (int, optional): The rate at which frames are extracted.
-- `prefix` (str, optional): Prefix to be added to the frame file names.
-- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
-
-**Returns:**
-- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
-
-__`extract_frames_positionspan`__
-
-This method extracts frames from a video file within a specified position span and saves them as image files.
-
-**Parameters:**
-- `source_path` (str): Path to the source video file.
-- `start_frame` (int): The start frame position from which frames should be extracted.
-- `end_frame` (int): The end frame position from which frames should be extracted.
-- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
-- `step` (int, optional): The rate at which frames are extracted.
-- `prefix` (str, optional): Prefix to be added to the frame file names.
-- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
-
-**Returns:**
-- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
-
-__`extract_frames`__
-
-This method extracts frames from a video file at a specified frame rate and saves them as image files.
-
-**Parameters:**
-- `source_path` (str): Path to the source video file.
-- `target_dir` (str, optional): Path to the target directory where frames will be saved. If `None`, frames will be returned in memory.
-- `step` (int, optional): The rate at which frames are extracted.
-- `prefix` (str, optional): Prefix to be added to the frame file names.
-- `left_zeros` (int, optional): Number of left-padded zeros in the frame file names.
-
-**Returns:**
-- `list`: List of paths to the extracted frames or list of frames in memory if `target_dir` is `None`.
-
-### Example Usage of Frame Extraction Methods through the `SideSeeingInstance`:
-
+#### Through a `SideSeeingInstance`
 ```python
-from sideseeing_tools.sideseeing import SideSeeingDS
-
-# Initialize the SideSeeingDS object
-ds = sideseeing.SideSeeingDS(root_dir='/home/user/my-project')
-
-# Get a random instance from the dataset
+# Get a random instance
 inst = ds.instance
 
-# Extract frames at specific times and save to disk
+# Extract frames at 1.0, 2.0, and 3.0 seconds and save to 'output' directory
 inst.extract_frames_at_times(
     frame_times=[1.0, 2.0, 3.0],
     target_dir='output',
-    prefix='frame_',
-    left_zeros=5
+    prefix='frame_'
 )
 ```
 
-### Example Usage of Frame Extraction Methods through the `media` module:
-
+#### Through the `media` module
 ```python
 from sideseeing_tools import media
 
-# Extract frames at specific times and save to disk
-media.extract_frames_at_times(
-    source_path=video_path,
-    frame_times=[1.0, 2.0, 3.0],
-    target_dir='output',
-    prefix='frame_',
-    left_zeros=5
-)
+video_path = ds.instance.video
 
-# Extract frames at specific times and return in memory
-frames = media.extract_frames_at_times(
+# Extract frames and return them as a list of images in memory
+frames_in_memory = media.extract_frames_at_times(
     source_path=video_path,
     frame_times=[1.0, 2.0, 3.0]
 )
 
-# Extract frames at specific positions and save to disk
-media.extract_frames_at_positions(
-    source_path=video_path,
-    frame_positions=[30, 60, 90],
-    target_dir='output',
-    prefix='frame_',
-    left_zeros=5
-)
-
-# Extract frames at specific positions and return in memory
-frames = media.extract_frames_at_positions(
-    source_path=video_path,
-    frame_positions=[30, 60, 90]
-)
-
-# Extract frames within a timespan and save to disk
+# Extract frames from a time span and save to disk
 media.extract_frames_timespan(
     source_path=video_path,
     start_time=10.0,
     end_time=20.0,
     target_dir='output',
-    step=30,
-    prefix='frame_',
-    left_zeros=5
-)
-
-# Extract frames within a timespan and return in memory
-frames = media.extract_frames_timespan(
-    source_path=video_path,
-    start_time=10.0,
-    end_time=20.0,
-    step=30
-)
-
-# Extract frames within a position span and save to disk
-media.extract_frames_positionspan(
-    source_path=video_path,
-    start_frame=300,
-    end_frame=600,
-    target_dir='output',
-    step=30,
-    prefix='frame_',
-    left_zeros=5
-)
-
-# Extract frames within a position span and return in memory
-frames = media.extract_frames_positionspan(
-    source_path=video_path,
-    start_frame=300,
-    end_frame=600,
-    step=30
-)
-
-# Extract frames at a specified frame rate and save to disk
-media.extract_frames(
-    source_path=video_path,
-    target_dir='output',
-    step=30,
-    prefix='frame_',
-    left_zeros=5
-)
-
-# Extract frames at a specified frame rate and return in memory
-frames = media.extract_frames(
-    source_path=video_path,
-    step=30
+    step=30  # Extract one frame every 30 frames
 )
 ```
 
-## Additional tips
+## Recommended Folder Structure
 
-We suggest implementing the following folder structure: create a directory named `data` to contain all recordings. By doing so, when instantiating the `SideSeeingDataset`, a `metadata.csv` file will be generated in the root directory. Here is the command to instantiate a dataset:
-
-```python
-ds = sideseeing.SideSeeingDS('/home/user/my-project', subdir='data', name='MyDataset')
-```
-
-And here is the suggested folder structure:
+We suggest the following folder structure for your project. This allows `SideSeeingDS` to automatically generate a `metadata.csv` file in your project root.
 
 ```text
 my-project/
@@ -377,108 +246,93 @@ my-project/
 │  │  │  ├─ sensors.one.csv
 │  │  │  ├─ sensors.three.csv
 │  │  │  ├─ sensors.three.uncalibrated.csv
-│  │  │  ├─ video.gif
 │  │  │  ├─ video.mp4
-│  │  │  ├─ video.wav
-│  │  │  ├─ wifi.csv
+│  │  │  ├─ ...
 │  │  ├─ route02/
 │  ├─ place02/
-│  ├─ place03/
 ├─ metadata.csv
 ├─ taxonomy.csv
 ```
 
-## Sensor data specification before SideSeeing conversion
+## Sensor Data Specification
 
-The following data outlines the specifications of sensor content before SideSeeing conversion, i.e., when accessing them directly through the files generated by the MultSensor Data Collection tool.
+This section details the data format as generated by the MultiSensor Data Collection tool, before conversion by SideSeeing.
 
-**File cell.csv**
+<details>
+<summary>Click to expand sensor data details</summary>
 
+### File cell.csv
 | datetime_utc             | cellular_network |
 |--------------------------|------------------|
-| 2024-03-21T19:38:04.961Z | `data`           |
+| 2025-11-09T10:24:24.476Z | `CellInfoWcdma:{...}` |
 
-
-**File wifi.csv**
-
+### File wifi.csv
 | datetime_utc              | wifi_network |
 |---------------------------|--------------|
-| 2024-03-21T19:38:04.961Z  | `data`       |
+| 2025-11-09T10:24:24.467Z  | `SSID: "Android123_6948", ...` |
 
-
-**File consumption.csv**
-
+### File consumption.csv
 | datetime_utc             | battery_microamperes |
 |--------------------------|----------------------|
 | 2024-03-21T19:38:04.961Z | -1431                |
-| 2024-03-21T19:38:05.961Z | -1011                |
-| 2024-03-21T19:38:06.961Z | -2216                |
 
-**File gps.csv**
-
+### File gps.csv
 | datetime_utc            | gps_interval | accuracy | latitude | longitude  |
 |-------------------------|--------------|----------|----------|------------|
 | 2024-03-21T19:38:10.309Z| 15           | 16.0     | -23.5645676 | -46.7395994 |
-| 2024-03-21T19:38:38.033Z| 15           | 57.639   | -23.5645617 | -46.739602  |
-| 2024-03-21T19:38:54.120Z| 15           | 26.611   | -23.5645528 | -46.7396658 |
 
-**File sensors.one.csv**
-
+### File sensors.one.csv
 | timestamp_nano       | datetime_utc            | name                        | axis_x           | accuracy  |
 |----------------------|-------------------------|-----------------------------|------------------|-----------|
-| 0                    | 2024-03-13T13:40:27.243Z| Palm Proximity Sensor       | 5.0              | 3         |
 | 712657771915658      | 2024-03-21T19:38:05.015Z| TCS3407 Uncalibrated lux Sensor | 1810.0    | 3         |
-| 712657931915658      | 2024-03-21T19:38:05.174Z| TCS3407 Uncalibrated lux Sensor | 1812.0    | 3         |
 
-**File sensors.three.csv**
-
+### File sensors.three.csv
 | timestamp_nano    | datetime_utc            | name                        | axis_x      | axis_y       | axis_z      | accuracy |
 |-------------------|-------------------------|-----------------------------|-------------|--------------|-------------|----------|
 | 712657652031560   | 2024-03-21T19:38:04.895Z| LSM6DSO Acceleration Sensor | 9.603442    | -0.10295067  | 3.9959226   | 3        |
-| 712657673895658   | 2024-03-21T19:38:04.916Z| LSM6DSO Acceleration Sensor | 9.823709    | -0.38067806  | 3.9097314   | 3        |
-| 712657652031560   | 2024-03-21T19:38:04.895Z| LSM6DSO Gyroscope Sensor    | 0.113544576 | 0.42852196   | 0.083306745 | 3        |
 
-**File sensors.three.uncalibrated.csv**
-
+### File sensors.three.uncalibrated.csv
 | timestamp_nano    | datetime_utc            | name                            | axis_x       | axis_y        | axis_z       | delta_x        | delta_y       | delta_z       | accuracy |
 |-------------------|-------------------------|---------------------------------|--------------|---------------|--------------|----------------|---------------|---------------|----------|
-| 712657851915658   | 2024-03-21T19:38:05.094Z| Uncalibrated Magnetic Sensor   | 268.56       | -9.54         | -230.45999   | 255.48         | -2.28         | -227.94       | 3        |
 | 712657852615658   | 2024-03-21T19:38:05.096Z| Gyroscope sensor UnCalibrated   | 0.044593163  | -0.13439035   | 0.07086037   | -0.003009122   | -0.016193425  | -0.0026664268| 3        |
-| 712657862615658   | 2024-03-21T19:38:05.105Z| Gyroscope sensor UnCalibrated   | 0.042760566  | -0.05009095   | 0.100792766  | -0.003009122   | -0.016193425  | -0.0026664268| 3        |
-| 712657874678965   | 2024-03-21T19:38:05.118Z| Uncalibrated Magnetic Sensor   | 268.62       | -8.639999     | -231.48      | 255.48         | -2.28         | -227.94       | 3        |
-| 712657872615658   | 2024-03-21T19:38:05.116Z| Gyroscope sensor UnCalibrated   | 0.064751714  | -0.007330383  | 0.118507855  | -0.003009122   | -0.016193425  | -0.0026664268| 3        |
 
+</details>
 
 ## List of `SideSeeingInstance` attributes/methods
 
-| Attribute or method           | Description |
+| Attribute/Method              | Description |
 | ----------------------------- | ----------- |
-| `geolocation_points`          | Dictionary containing geolocation data, including latitude and longitude coordinates representing geographical points. |
-| `geolocation_center`          | Latitude and longitude coordinates representing the geographic center of a specific area. |
-| `audio`                       | Path to the audio file associated with the collected data. |
-| `cell_networks`               | Dictionary containing cellular network data. |
-| `gif`                         | Path to the GIF file associated with the collected data. |
-| `wifi_networks`               | Dictionary containing WiFi network data. |
-| `video`                       | Path to the video file associated with the collected data. |
-| `sensors1`                    | Dictionary containing data from one-axis sensors. |
-| `sensors3`                    | Dictionary containing data from three-axis sensors. |
-| `sensors6`                    | Dictionary containing data from six-axis sensors, including uncalibrated data. |
-| `label`                       | List of categories and tags representing the taxonomy of sidewalks. |
-| `video_start_time`            | Start time of the video associated with the collected data. |
-| `video_stop_time`             | Stop time of the video associated with the collected data. |
-| `extract_snippet`             | Extracting a snippet from the sample (video, sensor, gps and consumption data). |
-| `extract_frames_at_times`     | Extract frames from a video file at specified time points and save them as image files. |
-| `extract_frames_at_positions` | Extract frames from a video file at specified frame positions and save them as image files. |
-| `extract_frames_timespan`     | Extract frames from a video file within a specified time span and save them as image files. |
-| `extract_frames_positionspan` | Extract frames from a video file within a specified position span and save them as image files. |
-| `extract_frames`              | Extract frames from a video file at a specified frame rate and save them as image files. |
+| `geolocation_points`          | Geolocation data points. |
+| `geolocation_center`          | Geographic center of the instance. |
+| `audio`                       | Path to the audio file. |
+| `video`                       | Path to the video file. |
+| `gif`                         | Path to the GIF file. |
+| `sensors1`, `sensors3`, `sensors6` | Dictionaries of sensor data. |
+| `label`                       | Taxonomy tags for the instance. |
+| `video_start_time`, `video_stop_time` | Video start and stop timestamps. |
+| `extract_snippet()`           | Extracts a snippet of all data types. |
+| `extract_frames_...()`        | Methods for frame extraction. |
 
+## Testing
 
-## Author
+This project uses `tox` for managing test environments. Tests are located in the `tests/` directory.
 
-[Rafael J P Damaceno](https://github.com/rafaelpezzuto)
+To run the tests, execute the following command from the project root:
+```bash
+tox
+```
 
+## Contributing
 
-## About us
+Contributions are welcome! If you have a suggestion or find a bug, please open an issue to discuss it.
 
-The SideSeeing Project aims to develop methods based on Computer Vision and Machine Learning for Urban Informatics applications. Our goal is to devise strategies for obtaining and analyzing data related to urban accessibility. Take a look at our [website](https://sites.usp.br/sideseeing).
+If you want to contribute with code, please fork the repository and submit a pull request.
+
+## Authors
+
+- [Rafael J P Damaceno](https://github.com/rafaelpezzuto)
+- [Renzo Filho](https://github.com/Renzo-Filho)
+
+## About Us
+
+The SideSeeing Project aims to develop methods based on Computer Vision and Machine Learning for Urban Informatics applications. Our goal is to devise strategies for obtaining and analyzing data related to urban accessibility. Visit our [website](https://sites.usp.br/sideseeing) to learn more.

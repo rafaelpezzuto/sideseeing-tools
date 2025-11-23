@@ -1,0 +1,2 @@
+name,geolocation_center,video_start_time,video_end_time,video_duration,video_frames,video_fps,video_resolution,manufacturer,model,so_version
+instance-001,"-23.5394792, -46.70737171666667",2024-01-06 14:59:48.138,2024-01-06 15:01:12.508,83.93,2518,30.0,640x360,motorola,motorola edge 30 ultra,33

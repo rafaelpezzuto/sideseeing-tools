@@ -1,0 +1,61 @@
+body { font-family: 'Inter', sans-serif; }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Sidebar Scrollbar */
+.sidebar-scrollbar::-webkit-scrollbar { width: 6px; }
+.sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb { background: #64748b; }
+
+/* Collapsible menu transition */
+.submenu { transition: max-height 0.3s ease-out; overflow: hidden; }
+.menu-toggle-icon { transition: transform 0.3s ease-in-out; }
+
+/* Hide section content by default */
+.section-content { display: none; }
+.section-content.active { display: block; }
+
+/* For smooth row expansion */
+.details-row { transition: all 0.3s ease-in-out; }
+
+/* Leaflet custom controls styling */
+.leaflet-control-custom {
+    background-color: white;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.leaflet-control-custom:hover {
+    background-color: #f4f4f4;
+}
+
+/* Fullscreen Map Styles */
+.is-fullscreen {
+    padding: 0 !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 1000;
+}
+
+/* Ensure the map div itself expands to fill the fullscreen wrapper */
+#map-wrapper.is-fullscreen #summary-overview-map,
+#geo-map-container.is-fullscreen #geo-map,
+#wifi-map-container.is-fullscreen #wifi-map,
+#sidewalk-assessment-map-container.is-fullscreen #sidewalk-assessment-map {
+    height: 100% !important;
+    border-radius: 0 !important;
+}

@@ -3,6 +3,7 @@ import json
 import os
 import random
 import re
+import pandas as pd
 
 from sideseeing_tools import (
     constants, 
@@ -20,6 +21,7 @@ class SideSeeingDS:
             name='MyDataset', 
             generate_metadata=False,
             extract_media=False,
+            google_api_key=None,
         ):
         print('INFO. Loading data.')
         self.name = name
@@ -32,7 +34,7 @@ class SideSeeingDS:
         self.setup(extract_media)
 
         if generate_metadata:
-            self.metadata(generate_metadata)
+            self.metadata(generate_metadata, google_api_key)
         print('INFO. Done.')
 
     def setup(self, extract_media):
@@ -88,7 +90,7 @@ class SideSeeingDS:
         for k in sorted(self.instances.keys()):
             yield self.instances[k]
 
-    def metadata(self, save=False):
+    def metadata(self, save=False, google_api_key=None):
         if self.size == 0:
             print(f'ERROR. Dataset is empty.')
             return
@@ -99,7 +101,7 @@ class SideSeeingDS:
             df = utils.load_csv_data_with_pandas(path)
 
         if not os.path.exists(path) or save:
-            df = utils.generate_metadata(self.iterator, constants.DATETIME_UTC_FORMAT)
+            df = utils.generate_metadata(self.iterator, constants.DATETIME_UTC_FORMAT, google_api_key)
             utils.save_csv_data_with_pandas(df, path)
 
         return df
@@ -126,7 +128,7 @@ class SideSeeingFile:
 
     def gen_instance_name(self, file_path, data_dir):
         els = f'{os.path.dirname(file_path)}'.replace(data_dir, '').split(os.path.sep)
-        return '#'.join(els[1:])
+        return '_'.join(els[1:])
 
     def discover_file_type(self):
         if self.file_name.endswith('metadata.json'):
@@ -210,7 +212,7 @@ class SideSeeingInstance:
 
         attributes = [
             'consumption', 'geolocation_points', 'geolocation_center', 
-            'sensors3', 'sensors6', 'sensors1', 'cell_networks', 
+            'sensors3', 'sensors6', 'sensors1', 'cell_networks',
             'wifi_networks', 'label', 'video', 'audio', 'gif'
         ]
         for attr in attributes:
@@ -599,3 +601,34 @@ class SideSeeingInstance:
             prefix,
             left_zeros,
         )
+    
+    def calculate_sample_distance_traveled(self) -> float:
+        """ 
+        Calculates the distance traveled within a single sample, in km.
+        """
+        df_gps = self.geolocation_points
+        if df_gps is None or df_gps.empty or len(df_gps) < 2:
+            return 0.0
+            
+        df_gps = df_gps.sort_values(by='Datetime UTC')
+        df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
+        df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
+        df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
+        
+        if len(df_gps) < 2:
+            return 0.0
+
+        # Calculate the distance between consecutive points using pandas vector operations.
+        df_gps['latitude_next'] = df_gps['latitude'].shift(-1)
+        df_gps['longitude_next'] = df_gps['longitude'].shift(-1)
+        mask = df_gps['latitude_next'].notnull() & df_gps['longitude_next'].notnull()
+        
+        distances = df_gps.loc[mask].apply(
+            lambda row: utils.calculate_haversine_distance(
+                row['latitude'], row['longitude'],
+                row['latitude_next'], row['longitude_next']
+            ),
+            axis=1
+        )
+
+        return float(distances.sum())

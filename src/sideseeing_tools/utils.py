@@ -2,13 +2,16 @@ import csv
 import datetime
 import re
 import requests
-
+import os
 import cv2
 import numpy as np
 import pandas as pd
 import reverse_geocode
 
-from .constants import CELL_SNIPPET_HEADER, WIFI_SNIPPET_HEADER
+from datetime import timedelta
+from math import radians, sin, cos, sqrt, asin
+
+from .constants import CELL_SNIPPET_HEADER
 
 
 def load_csv_data(path: str, fieldnames: list, delimiter=','):
@@ -54,7 +57,23 @@ def extract_media_stop_time(metadata: dict):
     return video_stop_time or media_stop_time
 
 
-def generate_metadata(iterator, datetime_format: str):
+def format_location_to_string(location_data: dict) -> str:
+    """
+    Formats a location dictionary into a single string.
+    """
+    if not location_data or all(value == 'Unknown' for value in location_data.values()):
+        return 'Unknown'
+
+    parts = []
+    for k in ["country", "state", "city", "street"]:
+        v = location_data.get(k, "Unknown")
+        if v != "Unknown":
+            parts.append(v)
+
+    return ', '.join(parts)
+
+
+def generate_metadata(iterator, datetime_format: str, google_api_key: str = None):
     items = []
 
     for i in iterator:
@@ -69,10 +88,15 @@ def generate_metadata(iterator, datetime_format: str):
 
         item['name'] = i.name
         
-        if hasattr(i, 'geolocation_center'):
-          item['geolocation_center'] = f'{i.geolocation_center[0]}, {i.geolocation_center[1]}'
+        if hasattr(i, 'geolocation_center') and i.geolocation_center:
+            lat, lon = i.geolocation_center
+            item['geolocation_center'] = f'{lat}, {lon}'
+            
+            location_data = inverse_geocode(lat, lon, key=google_api_key)
+            item['location'] = format_location_to_string(location_data)
         else:
-           item['geolocation_center'] = ''
+            item['geolocation_center'] = ''
+            item['location'] = 'Unknown'
 
         media_start_time = extract_media_start_time(i.metadata)
         media_stop_time = extract_media_stop_time(i.metadata)
@@ -337,6 +361,9 @@ def to_dataframe(data, num_axes: int, datetime_format: str, data_type='sensor', 
     Converts data into a Pandas.DataFrame and includes a column to represent the duration in seconds of the time series.
     Also returns the count of data points for each sensor axis.
     '''
+    if not data:
+        return pd.DataFrame()
+
     columns = ['Datetime UTC']
 
     if data_type == 'sensor':
@@ -403,7 +430,7 @@ def resample_sensor_data(data: pd.DataFrame, target_fps=30):
 
 
 def inverse_geocode(latitude: float, longitude: float, key: str=None):
-    data = {'country': 'Unknown', 'city': 'Unknown'}
+    data = {'country': 'Unknown', 'state': 'Unknown', 'city': 'Unknown', 'street': 'Unknown'}
 
     if not key:
         geo = reverse_geocode.search([[latitude, longitude]])
@@ -418,17 +445,41 @@ def inverse_geocode(latitude: float, longitude: float, key: str=None):
 
 
 def inverse_geocode_from_google(latitude: float, longitude: float, key: str):
-    response = requests.get(f'https://maps.googleapis.com/maps/api/geocode/json?latlng={float(latitude)},{float(longitude)}&location_type=ROOFTOP&result_type=street_address&key={key}').json()
-    data = {'country': 'Unknown', 'city': 'Unknown'}
+    """
+    Performs reverse geocoding using Google's Geocoding API to find address components.
+    It's optimized to find the most relevant address without requiring a specific street number.
+    """
+    # Mapping from Google's address component types to our desired keys.
+    COMPONENT_MAPPING = {
+        'route': 'street',
+        'administrative_area_level_2': 'city',
+        'administrative_area_level_1': 'state',
+        'country': 'country',
+    }
+    
+    # Default data structure.
+    data = {v: 'Unknown' for v in COMPONENT_MAPPING.values()}
 
-    for r in response.get("results"):
-        for i in r.get('address_components'):
-            if 'country' in i.get('types'):
-                data['country'] = i.get('long_name')
+    try:
+        # The API request is more generic to increase the chances of getting a result.
+        params = {
+            'latlng': f'{float(latitude)},{float(longitude)}',
+            'key': key
+        }
+        response = requests.get('https://maps.googleapis.com/maps/api/geocode/json', params=params)
+        response.raise_for_status()  # Raises an exception for bad status codes (4xx or 5xx).
+        results = response.json().get("results", [])
 
-            if 'administrative_area_level_2' in i.get('types'):
-                data['city'] = i.get('long_name')
+        if not results:
+            return data
 
+        # Process only the first, most relevant result.
+        for component in results[0].get('address_components', []):
+            for component_type, data_key in COMPONENT_MAPPING.items():
+                if component_type in component.get('types', []):
+                    data[data_key] = component.get('long_name')
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR. Failed to call Google Geocoding API: {e}")
     return data
 
 
@@ -457,3 +508,63 @@ def extract_dataframe_snippet(data: pd.DataFrame, start_time, end_time, output_p
         snippet.to_csv(output_path, sep=',', columns=data.columns, index=False)
     
     return snippet
+
+
+def format_duration(seconds: float) -> str:
+        """
+        Converts seconds into a human-like string (H:M:S).
+
+        Args:
+            seconds (float): The duration in seconds.
+
+        Returns:
+            str: A formatted string (e.g., "Xh Ym Zs") or "N/A".
+        """
+        if pd.isna(seconds):
+            return "N/A"
+
+        try:
+            sec = int(seconds)
+
+            td = timedelta(seconds=sec)
+
+            hours = td.days * 24 + td.seconds // 3600
+            minutes = (td.seconds // 60) % 60
+            seconds = td.seconds % 60
+
+            return f"{str(hours).zfill(2)}:{str(minutes).zfill(2)}:{str(seconds).zfill(2)}"
+
+        except Exception:
+            return f"{seconds:.0f}"
+
+def get_dir_size(dir_path: str) -> float:
+    """ Calculate the total size of the directory in GB."""
+
+    if not os.path.exists(dir_path):
+        raise ValueError(f"Path '{dir_path}' does not exist.")
+    
+    if not os.path.isdir(dir_path):
+        raise ValueError(f"Path '{dir_path}' is not a directory.")
+
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(dir_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    # Convert bytes to GB
+    return total_size / (1024**3)
+
+
+def calculate_haversine_distance(lat1, lon1, lat2, lon2):
+    """ Calculate the latitude/longitude distance between two points in km. """
+    R = 6371  
+    
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * asin(sqrt(a))
+    return R * c

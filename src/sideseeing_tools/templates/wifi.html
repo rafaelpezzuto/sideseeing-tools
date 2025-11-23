@@ -1,0 +1,56 @@
+<div id="wifi-section" class="section-content max-w-7xl mx-auto space-y-8">
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <i data-lucide="wifi" class="text-sky-500" size="20"></i>
+                Wi-Fi Signals
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Wi-Fi signal strength along the routes.</p>
+        </div>
+        <div class="p-6">
+            <!-- Step 1, 2 & 3: Select Sample, Band, and SSID -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label for="wifi-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>1. Select Sample:</strong></label>
+                    <select id="wifi-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                        <option selected disabled value="">-- Choose a sample --</option>
+                        {% if sections.wifi %}
+                            {% for instance_name, json_path in sections.wifi.items() %}
+                                <option value="{{ json_path }}" data-name="{{ instance_name }}">{{ instance_name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div>
+                    <label for="wifi-band-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>2. Select Band:</strong></label>
+                    <select id="wifi-band-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" disabled>
+                        <option selected disabled value="">-- First, choose a sample --</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="wifi-ssid-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>3. Select SSID:</strong></label>
+                    <select id="wifi-ssid-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" disabled>
+                        <option selected disabled value="">-- First, choose a band --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Map Display Area -->
+            <div id="wifi-map-container" class="mt-4 relative min-h-[400px] rounded-lg bg-gray-100 flex items-center justify-center z-10">
+                <div id="wifi-map-placeholder">
+                    <div class="text-center text-gray-400">
+                        <i data-lucide="map" class="mx-auto h-12 w-12"></i>
+                        <p class="mt-2 text-lg">Select a sample, band, and SSID to get started.</p>
+                    </div>
+                </div>
+                <div id="wifi-map-spinner" class="hidden items-center justify-center h-full">
+                    <div class="flex flex-col items-center gap-2 text-gray-500">
+                        <i data-lucide="loader-2" class="animate-spin h-8 w-8"></i>
+                        <span class="text-sm font-medium">Loading Wi-Fi data...</span>
+                    </div>
+                </div>
+                <div id="wifi-map" class="w-full h-full hidden" style="height: 400px;"></div>
+            </div>
+        </div>
+    </section>
+</div>
