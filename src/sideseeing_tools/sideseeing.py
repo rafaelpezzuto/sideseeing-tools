@@ -631,5 +631,4 @@ class SideSeeingInstance:
             axis=1
         )
 
-        return distances.sum()
-
+        return float(distances.sum())
