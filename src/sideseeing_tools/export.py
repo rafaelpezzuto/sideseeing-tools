@@ -135,6 +135,31 @@ class Report:
         print("Summary generated successfully.")
         return summary_data
     
+    def _get_sensor_unit(self, sensor_name: str) -> str:
+        """
+        Returns the unit for a given sensor name.
+        """
+        sensor_name_lower = sensor_name.lower()
+        if 'acc' in sensor_name_lower:
+            return 'm/s²'
+        if 'gyr' in sensor_name_lower:
+            return 'rad/s'
+        if 'mag' in sensor_name_lower:
+            return 'μT'
+        if 'light' in sensor_name_lower or 'lux' in sensor_name_lower:
+            return 'lx'
+        if 'pressure' in sensor_name_lower:
+            return 'hPa'
+        if 'proximity' in sensor_name_lower:
+            return 'cm'
+        if 'humidity' in sensor_name_lower:
+            return '%'
+        if 'temp' in sensor_name_lower:
+            return '°C'
+        if 'gravity' in sensor_name_lower:
+            return 'm/s²'
+        return ''
+
     def _process_sensors_data(self, ds: sideseeing.SideSeeingDS, output_data_dir: str) -> Optional[Dict[str, str]]:
         """
         Prepares sensor data, saving one JSON per sample in the 'output_data_dir'.
