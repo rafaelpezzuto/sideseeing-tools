@@ -9,3 +9,4 @@ src/tmp
 .tox
 .idea
 ignore
+dist
