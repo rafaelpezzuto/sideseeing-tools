@@ -5,12 +5,11 @@ function initWifiSection(activeMaps, loadedWifiData) {
     const wifiMapContainer = document.getElementById('wifi-map-container');
     const wifiSpinner = document.getElementById('wifi-map-spinner');
     const wifiPlaceholder = document.getElementById('wifi-map-placeholder');
-    let wifiMapDiv = document.getElementById('wifi-map'); // Keep a reference to the original div
+    let wifiMapDiv = document.getElementById('wifi-map');
     let cleanupFullscreen;
 
     if (!wifiSelect) return;
 
-    // Make the section findable by the section switcher
     wifiMapContainer.closest('.section-content').dataset.mapId = 'wifi-map';
 
     wifiSelect.addEventListener('change', handleWifiSampleChange);
@@ -26,33 +25,39 @@ function initWifiSection(activeMaps, loadedWifiData) {
 
         const jsonPath = selectedOption.value;
         const sampleName = selectedOption.textContent;
-
+        
         resetWifiView(false);
         wifiSpinner.classList.remove('hidden');
         wifiSpinner.classList.add('flex');
         wifiPlaceholder.style.display = 'none';
 
-        Promise.all([
-            fetch(jsonPath).then(res => res.json()),
-            fetch(GEO_FILES[sampleName]).then(res => res.json())
-        ]).then(([wifiData, geoData]) => {
-            loadedWifiData[jsonPath] = { name: sampleName, data: wifiData, geo: geoData };
-            wifiSpinner.classList.add('hidden');
-            
-            plotGpsPath(geoData);
-            populateWifiBandSelect(jsonPath, wifiData);
-        }).catch(err => {
-            console.error("Error loading Wi-Fi or GPS data:", err);
-            wifiSpinner.classList.add('hidden');
-            wifiMapContainer.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Failed to load data.</div>`;
-        });
+        fetch(jsonPath)
+            .then(res => res.json())
+            .then(wifiPayload => {
+                loadedWifiData[jsonPath] = { 
+                    name: sampleName, 
+                    data: wifiPayload.wifi_data, 
+                    geo: { path: wifiPayload.path }, 
+                    analysis: { path: wifiPayload.corrected_path } 
+                };
+                wifiSpinner.classList.add('hidden');
+                
+                renderBaseMap(loadedWifiData[jsonPath]);
+                populateWifiBandSelect(jsonPath, wifiPayload.wifi_data);
+            }).catch(err => {
+                console.error("Error loading Wi-Fi data:", err);
+                wifiSpinner.classList.add('hidden');
+                wifiMapContainer.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Failed to load data.</div>`;
+            });
     }
 
     function populateWifiBandSelect(jsonPath, wifiData) {
         const bands = new Set();
-        for (const ssid in wifiData) {
-            for (const band in wifiData[ssid]) {
-                bands.add(band);
+        if (wifiData) {
+            for (const ssid in wifiData) {
+                for (const band in wifiData[ssid]) {
+                    bands.add(band);
+                }
             }
         }
 
@@ -87,11 +92,11 @@ function initWifiSection(activeMaps, loadedWifiData) {
     }
 
     function populateWifiSsidSelect(jsonPath, wifiData, selectedBand) {
-        const ssids = Object.keys(wifiData).filter(ssid => wifiData[ssid][selectedBand] && ssid.trim() !== '');
+        const ssids = wifiData ? Object.keys(wifiData).filter(ssid => wifiData[ssid][selectedBand] && ssid.trim() !== '') : [];
 
-        wifiSsidSelect.innerHTML = '<option selected disabled value="">-- First, choose a band --</option>';
+        wifiSsidSelect.innerHTML = '<option selected disabled value="">-- Choose SSID --</option>';
         if (ssids.length === 0) {
-            wifiSsidSelect.innerHTML = '<option selected disabled value="">-- No SSIDs for this band --</option>';
+            wifiSsidSelect.innerHTML = '<option selected disabled value="">-- No SSIDs --</option>';
             wifiSsidSelect.disabled = true;
             return;
         }
@@ -106,7 +111,6 @@ function initWifiSection(activeMaps, loadedWifiData) {
         });
 
         wifiSsidSelect.disabled = false;
-        handleWifiSsidChange();
     }
 
     function handleWifiSsidChange() {
@@ -117,7 +121,7 @@ function initWifiSection(activeMaps, loadedWifiData) {
         const jsonPath = selectedSsidOption.dataset.jsonPath;
         const band = selectedSsidOption.dataset.band;
 
-        plotWifiMap(jsonPath, ssid, band);
+        plotWifiSignal(jsonPath, ssid, band);
     }
 
     function resetWifiView(fullReset = true) {
@@ -146,15 +150,19 @@ function initWifiSection(activeMaps, loadedWifiData) {
         }
     }
 
-    function plotGpsPath(geoData) {
-        const { center, path } = geoData;
-        if (!path || path.length === 0) return;
+    function renderBaseMap(sampleData) {
+        const { geo, analysis } = sampleData;
+        const originalPath = geo.path;
+        const correctedPath = analysis ? analysis.path : null;
+
+        if (!originalPath || originalPath.length === 0) return;
 
         resetWifiView(false);
 
         wifiPlaceholder.style.display = 'none';
         wifiMapDiv.classList.remove('hidden');
 
+        const center = originalPath[Math.floor(originalPath.length / 2)];
         const map = L.map(wifiMapDiv).setView(center, 16);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -164,14 +172,22 @@ function initWifiSection(activeMaps, loadedWifiData) {
         
         activeMaps['wifi-map'] = map;
 
-        const gpsPath = L.polyline(path, { color: 'blue', opacity: 0.6, weight: 2 });
-        const bounds = gpsPath.getBounds();
+        const bounds = L.latLngBounds();
+        const baseLayers = {};
+        const overlayLayers = {};
 
-        const startMarker = L.marker(path[0]).bindPopup('<b>Start</b>');
-        const endMarker = L.marker(path[path.length - 1]).bindPopup('<b>End</b>');
+        const originalPolyline = L.polyline(originalPath, { color: '#dc3545', opacity: 0.8, weight: 4 });
+        overlayLayers["Phone GPS"] = originalPolyline;
+        bounds.extend(originalPolyline.getBounds());
+        originalPolyline.addTo(map);
 
-        const gpsPathLayer = L.layerGroup([gpsPath, startMarker, endMarker]).addTo(map);
-
+        if (correctedPath && correctedPath.length > 0) {
+            const correctedPolyline = L.polyline(correctedPath, { color: '#3388ff', opacity: 0.8, weight: 4 });
+            overlayLayers["Corrected GPS"] = correctedPolyline;
+            bounds.extend(correctedPolyline.getBounds());
+            correctedPolyline.addTo(map);
+        }
+        
         map.fitBounds(bounds, { padding: [20, 20] });
 
         cleanupFullscreen = addFullscreenControl(map, 'wifi-map-container');
@@ -180,7 +196,9 @@ function initWifiSection(activeMaps, loadedWifiData) {
         if (!map.signalLayers) {
             map.signalLayers = L.layerGroup().addTo(map);
         }
-        map.gpsPathLayer = gpsPathLayer;
+        overlayLayers["WiFi Signal"] = map.signalLayers;
+
+        L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
         
         if (window.lucide) {
             window.lucide.createIcons();
@@ -195,7 +213,7 @@ function initWifiSection(activeMaps, loadedWifiData) {
         return '#dc3545';
     }
 
-    function plotWifiMap(jsonPath, ssid, band) {
+    function plotWifiSignal(jsonPath, ssid, band) {
         const sampleData = loadedWifiData[jsonPath];
         if (!sampleData) return;
 
@@ -208,17 +226,31 @@ function initWifiSection(activeMaps, loadedWifiData) {
         const map = activeMaps['wifi-map'];
         if (!map) return;
 
-        if (map.signalLayers) {
-            map.signalLayers.clearLayers();
-        } else {
-            map.signalLayers = L.layerGroup().addTo(map);
-        }
+        map.signalLayers.clearLayers();
+
+        const correctedPath = (sampleData.analysis && sampleData.analysis.path && sampleData.analysis.path.length > 1) 
+            ? sampleData.analysis.path 
+            : null;
+
+        const pathForSnapping = correctedPath || sampleData.geo.path;
+        if (!pathForSnapping || pathForSnapping.length < 2) return;
+
+        const pathLine = L.polyline(pathForSnapping);
 
         wifiPoints.forEach(point => {
             const [lat, lon, level] = point;
+            let displayLat = lat;
+            let displayLon = lon;
+
+            const snapped = L.GeometryUtil.closest(map, pathLine, [lat, lon]);
+            if (snapped) {
+                displayLat = snapped.lat;
+                displayLon = snapped.lng;
+            }
+            
             const color = getWifiColor(level);
             
-            L.circle([lat, lon], {
+            L.circle([displayLat, displayLon], {
                 color: color,
                 fillColor: color,
                 fillOpacity: 0.5,
@@ -239,21 +271,6 @@ function initWifiSection(activeMaps, loadedWifiData) {
         legend.onAdd = function (map) {
             const div = L.DomUtil.create('div', 'info legend p-2 bg-white bg-opacity-80 rounded-md shadow text-xs');
             
-            div.innerHTML = `
-                <div class="font-bold mb-1">Map Layers</div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="toggle-gps-path-wifi" class="mr-2" checked>
-                    <label for="toggle-gps-path-wifi" class="flex items-center cursor-pointer">
-                        <span class="w-4 h-2 mr-1" style="background:blue; opacity: 0.6;"></span> GPS Path
-                    </label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="toggle-wifi-signal" class="mr-2" checked>
-                    <label for="toggle-wifi-signal" class="cursor-pointer">WiFi Signal</label>
-                </div>
-                <hr class="my-2">
-            `;
-
             const grades = [-90, -80, -70, -60, -50];
             let labels = ['<strong class="font-bold">Signal (dBm)</strong>'];
             for (let i = 0; i < grades.length; i++) {
@@ -268,30 +285,6 @@ function initWifiSection(activeMaps, loadedWifiData) {
 
             L.DomEvent.on(div, 'click', L.DomEvent.stopPropagation);
             L.DomEvent.on(div, 'mousedown', L.DomEvent.stopPropagation);
-
-            setTimeout(() => {
-                const gpsToggle = document.getElementById('toggle-gps-path-wifi');
-                const wifiToggle = document.getElementById('toggle-wifi-signal');
-                
-                if (gpsToggle && map.gpsPathLayer) {
-                    gpsToggle.addEventListener('change', function() {
-                        if (this.checked) {
-                            map.addLayer(map.gpsPathLayer);
-                        } else {
-                            map.removeLayer(map.gpsPathLayer);
-                        }
-                    });
-                }
-                if (wifiToggle && map.signalLayers) {
-                    wifiToggle.addEventListener('change', function() {
-                        if (this.checked) {
-                            map.addLayer(map.signalLayers);
-                        } else {
-                            map.removeLayer(map.signalLayers);
-                        }
-                    });
-                }
-            }, 0);
 
             return div;
         };

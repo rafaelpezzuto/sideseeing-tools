@@ -5,9 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let loadedWifiData = {};
     let loadedGeoData = {};
 
-    lucide.createIcons();
     initSummaryMap();
-    initSidewalkAssessmentMap();
+    initSidewalkAssessmentMap(ANALYSIS_FILES);
     renderTable(SAMPLES_DATA);
     showSection('summary');
     
@@ -16,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initGeoSection(activeMaps, loadedGeoData);
     initializeSimpleSection('video');
     initializeSimpleSection('cell');
+    initializeSimpleSection('anonym');
 
     // --- Sidebar and Menu Logic ---
     document.getElementById('sidebar-open-btn').addEventListener('click', toggleSidebar);
@@ -142,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.appendChild(row);
         });
     
-        lucide.createIcons();
         document.getElementById('resultCount').textContent = `Showing ${data.length} of ${SAMPLES_DATA.length} samples`;
     }
 
@@ -169,4 +168,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.filterTable = filterTable;
+    lucide.createIcons();
 });

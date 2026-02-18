@@ -1,18 +1,17 @@
 <div id="sensors-section" class="section-content max-w-7xl mx-auto space-y-8">
     <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="p-6 border-b border-gray-100">
-            <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <i data-lucide="activity" class="text-blue-500" size="20"></i>
-                Device Sensors
-            </h2>
-            <p class="text-sm text-gray-500 mt-1">Detailed sensor readings across all samples.</p>
-        </div>
-        <div class="p-6">
-            <!-- Step 1: Select Sample -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                    <label for="sensor-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>1. Select Sample:</strong></label>
-                    <select id="sensor-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-500" size="20"></i>
+                    Device Sensors
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">Detailed sensor readings across all samples.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label for="sensor-select" class="text-sm font-medium text-gray-700">Sample:</label>
+                    <select id="sensor-select" class="w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2">
                         <option selected disabled value="">-- Choose a sample --</option>
                         {% if sections.sensor %}
                             {% for instance_name, json_path in sections.sensor.items() %}
@@ -21,15 +20,15 @@
                         {% endif %}
                     </select>
                 </div>
-                <!-- Step 2: Select Sensor Type -->
-                <div>
-                    <label for="sensor-type-select" class="block text-sm font-medium text-gray-700 mb-1"><strong>2. Select Sensor:</strong></label>
-                    <select id="sensor-type-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" disabled>
+                <div class="flex items-center gap-2">
+                    <label for="sensor-type-select" class="text-sm font-medium text-gray-700">Sensor:</label>
+                    <select id="sensor-type-select" class="w-auto bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" disabled>
                         <option selected disabled value="">-- First select a sample --</option>
                     </select>
                 </div>
             </div>
-
+        </div>
+        <div class="p-6">
             <!-- Chart Display Area -->
             <div id="charts-container" class="mt-4 relative min-h-[400px] border rounded-lg bg-gray-100 flex items-center justify-center">
                 <div id="charts-placeholder">
