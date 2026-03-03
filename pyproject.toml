@@ -39,6 +39,7 @@ python_files = ["test_*.py",]
 
 [tool.setuptools.package-data]
 "tests" = ["*"]
+"sideseeing_tools" = ["templates/**/*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
