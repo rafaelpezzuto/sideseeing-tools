@@ -100,7 +100,7 @@ class TestSideSeeingInstance(unittest.TestCase):
                 unique_line = lines.pop(0)
                 self.assertEqual(
                     unique_line,
-                    '2024-01-06T15:00:05.104Z,15.0,21.932,-23.5395938,-46.7073943'
+                    '2024-01-06T14:59:49.015Z,15.0,19.286,-23.5396392,-46.7074555'
                 )
 
     def test_extract_snippet_gps_with_end_time_minus_one_is_ok(self):
@@ -125,7 +125,7 @@ class TestSideSeeingInstance(unittest.TestCase):
 
                 self.assertEqual(
                     len(lines), 
-                    1,
+                    2,
                 )
 
     def test_extract_snippet_consumption_is_ok(self):
@@ -329,13 +329,13 @@ class TestSideSeeingInstance(unittest.TestCase):
                 first = lines.pop(0)
                 self.assertEqual(
                     first,
-                    '551555800880,2024-01-06T14:59:48.303Z,icm4x6xx gyroscope-uncalibrated wakeup,0.09440899,-0.01238369,0.026232118,0.09440899,-0.01238369,0.026232118,3',
+                    '551449505464,2024-01-06T14:59:48.198Z,icm4x6xx gyroscope-uncalibrated non-wakeup,0.122239,-0.030226856,0.062051605,0.122239,-0.030226856,0.062051605,3',
                 )
 
                 last = lines.pop()
                 self.assertEqual(
                     last,
-                    '553551816870,2024-01-06T14:59:50.299Z,icm4x6xx gyroscope-uncalibrated non-wakeup,0.035553172,0.018508956,0.01890843,0.035553172,0.018508956,0.01890843,3'
+                    '553547883224,2024-01-06T14:59:50.295Z,icm4x6xx gyroscope-uncalibrated wakeup,0.034221593,0.017443692,0.017710008,0.034221593,0.017443692,0.017710008,3'
                 )
 
     def test_extract_frames_in_memory_is_ok(self):

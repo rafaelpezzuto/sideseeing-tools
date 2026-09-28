@@ -1,6 +1,31 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from src.sideseeing_tools.utils import parse_wcdma
+from src.sideseeing_tools.utils import load_csv_data, parse_wcdma
+
+
+class TestLoadCsvData(unittest.TestCase):
+    def test_headerless_file_keeps_first_data_row(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'labels.txt'
+            path.write_text('adjacent road type,residential\nobstacles,car barrier\n')
+
+            rows = load_csv_data(path, ['category', 'tag'])
+
+        self.assertEqual(rows, [
+            {'category': 'adjacent road type', 'tag': 'residential'},
+            {'category': 'obstacles', 'tag': 'car barrier'},
+        ])
+
+    def test_file_with_header_does_not_include_header_as_data(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'labels.csv'
+            path.write_text('Category,Tag\nobstacles,car barrier\n')
+
+            rows = load_csv_data(path, ['category', 'tag'])
+
+        self.assertEqual(rows, [{'category': 'obstacles', 'tag': 'car barrier'}])
 
 
 class TestParseWcdma(unittest.TestCase):
