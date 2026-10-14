@@ -1,62 +1,62 @@
-DATETIME_UTC_FORMAT ="%Y-%m-%dT%H:%M:%S.%fZ"
+DATETIME_UTC_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 CONSUMPTION_FILE_FIELDNAMES = [
-  'datetime_utc',
-  'battery_microamperes',
+    'datetime_utc',
+    'battery_microamperes',
 ]
 
 GPS_FILE_FIELDNAMES = [
-  'datetime_utc',
-  'gps_interval',
-  'accuracy',
-  'latitude',
-  'longitude',
+    'datetime_utc',
+    'gps_interval',
+    'accuracy',
+    'latitude',
+    'longitude',
 ]
 
 LABELS_FILE_FIELDNAMES = [
-  'category',
-  'tag',
+    'category',
+    'tag',
 ]
 
 WIFI_FILE_FIELDNAMES = [
-  'datetime_utc',
-  'wifi_network',
+    'datetime_utc',
+    'wifi_network',
 ]
 
 CELL_FILE_FIELDNAMES = [
-  'datetime_utc',
-  'cellular_network',
-] 
+    'datetime_utc',
+    'cellular_network',
+]
 
 ONE_AXIS_SENSORS_FILE_FIELDNAMES = [
-  'timestamp_nano',
-  'datetime_utc',
-  'name',
-  'axis_x',
-  'accuracy',
+    'timestamp_nano',
+    'datetime_utc',
+    'name',
+    'axis_x',
+    'accuracy',
 ]
 
 THREE_AXES_SENSORS_FILE_FIELDNAMES = [
-  'timestamp_nano',
-  'datetime_utc',
-  'name',
-  'axis_x',
-  'axis_y',
-  'axis_z',
-  'accuracy',
+    'timestamp_nano',
+    'datetime_utc',
+    'name',
+    'axis_x',
+    'axis_y',
+    'axis_z',
+    'accuracy',
 ]
 
 THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES = [
-  'timestamp_nano',
-  'datetime_utc',
-  'name',
-  'axis_x',
-  'axis_y',
-  'axis_z',
-  'delta_x',
-  'delta_y',
-  'delta_z',
-  'accuracy',
+    'timestamp_nano',
+    'datetime_utc',
+    'name',
+    'axis_x',
+    'axis_y',
+    'axis_z',
+    'delta_x',
+    'delta_y',
+    'delta_z',
+    'accuracy',
 ]
 
 ONE_AXIS_FILE_NAME = 'sensors.one.csv'
@@ -95,47 +95,52 @@ METADATA_FILE_NAME = 'metadata.json'
 
 METADATA_SNIPPET_FILE_NAME = 'metadata.{}_{}.json'
 
-SUPPORTED_FILES = [
-  CONSUMPTION_FILE_NAME,
-  GPS_FILE_NAME,
-  CELL_FILE_NAME,
-  WIFI_FILE_NAME,
-  ONE_AXIS_FILE_NAME,
-  THREE_AXES_FILE_NAME,
-  THREE_AXES_UNCALIBRATED_FILE_NAME,
-  'metadata.json',
-  'video.gif',
-  'video.wav',
-  'labels.txt',
-  'labels.csv',
-  VIDEO_FILE_NAME,
-]
+FILE_TYPES = {
+    METADATA_FILE_NAME: 'metadata',
+    'labels.txt': 'label',
+    'labels.csv': 'label',
+    CONSUMPTION_FILE_NAME: 'consumption',
+    GPS_FILE_NAME: 'gps',
+    ONE_AXIS_FILE_NAME: 'sensors1',
+    THREE_AXES_FILE_NAME: 'sensors3',
+    THREE_AXES_UNCALIBRATED_FILE_NAME: 'sensors6',
+    CELL_FILE_NAME: 'cell',
+    WIFI_FILE_NAME: 'wifi',
+    VIDEO_FILE_NAME: 'video',
+    'video.wav': 'audio',
+    'audio.wav': 'audio',
+    'audio.m4a': 'audio',
+    'video.gif': 'gif',
+}
+
+SUPPORTED_FILES = list(FILE_TYPES)
+
 
 CELL_SNIPPET_HEADER = [
-  'Datetime UTC',
-  'registered',
-  'timestamp',
-  'connection_status',
-  'lac',
-  'cid',
-  'psc',
-  'uarfcn',
-  'mcc',
-  'mnc',
-  'alpha_long',
-  'alpha_short',
-  'ss',
-  'ber',
-  'rscp', 
-  'ecno',
-  'level',
+    'Datetime UTC',
+    'registered',
+    'timestamp',
+    'connection_status',
+    'lac',
+    'cid',
+    'psc',
+    'uarfcn',
+    'mcc',
+    'mnc',
+    'alpha_long',
+    'alpha_short',
+    'ss',
+    'ber',
+    'rscp',
+    'ecno',
+    'level',
 ]
 
 WIFI_SNIPPET_HEADER = [
-  'Datetime UTC',
-  'SSID',
-  'BSSID',
-  'level',
-  'frequency',
-  'standard',
+    'Datetime UTC',
+    'SSID',
+    'BSSID',
+    'level',
+    'frequency',
+    'standard',
 ]
