@@ -28,6 +28,7 @@ def load_csv_data(path: str, fieldnames: list, delimiter=','):
             fin.seek(0)
             reader = csv.DictReader(fin, delimiter=delimiter)
         else:
+            fin.seek(0)
             reader = csv.DictReader(fin, fieldnames=fieldnames, delimiter=delimiter)
 
         for row in reader:
