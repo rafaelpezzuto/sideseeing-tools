@@ -1,31 +1,19 @@
+import os
+import tempfile
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from src.sideseeing_tools.utils import load_csv_data, parse_wcdma
+import cv2
+import pandas as pd
 
-
-class TestLoadCsvData(unittest.TestCase):
-    def test_headerless_file_keeps_first_data_row(self):
-        with TemporaryDirectory() as directory:
-            path = Path(directory) / 'labels.txt'
-            path.write_text('adjacent road type,residential\nobstacles,car barrier\n')
-
-            rows = load_csv_data(path, ['category', 'tag'])
-
-        self.assertEqual(rows, [
-            {'category': 'adjacent road type', 'tag': 'residential'},
-            {'category': 'obstacles', 'tag': 'car barrier'},
-        ])
-
-    def test_file_with_header_does_not_include_header_as_data(self):
-        with TemporaryDirectory() as directory:
-            path = Path(directory) / 'labels.csv'
-            path.write_text('Category,Tag\nobstacles,car barrier\n')
-
-            rows = load_csv_data(path, ['category', 'tag'])
-
-        self.assertEqual(rows, [{'category': 'obstacles', 'tag': 'car barrier'}])
+from sideseeing_tools.constants import DATETIME_UTC_FORMAT
+from sideseeing_tools.utils import (
+    extract_dataframe_snippet,
+    generate_metadata,
+    load_csv_data,
+    parse_wcdma,
+)
 
 
 class TestParseWcdma(unittest.TestCase):
@@ -541,3 +529,96 @@ class TestParseWcdma(unittest.TestCase):
         }
         
         self.assertEqual(result, expected)
+
+
+class TestLoadCsvData(unittest.TestCase):
+    def test_load_csv_data_with_matching_header(self):
+        content = "category,tag\nsidewalk,paved\nsidewalk,unpaved\n"
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = load_csv_data(temp_path, fieldnames=['category', 'tag'])
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0], {'category': 'sidewalk', 'tag': 'paved'})
+            self.assertEqual(result[1], {'category': 'sidewalk', 'tag': 'unpaved'})
+        finally:
+            os.remove(temp_path)
+
+    def test_load_csv_data_without_header_preserves_first_row(self):
+        content = "sidewalk,paved\nsidewalk,unpaved\n"
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as f:
+            f.write(content)
+            temp_path = f.name
+
+        try:
+            result = load_csv_data(temp_path, fieldnames=['category', 'tag'])
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0], {'category': 'sidewalk', 'tag': 'paved'})
+            self.assertEqual(result[1], {'category': 'sidewalk', 'tag': 'unpaved'})
+        finally:
+            os.remove(temp_path)
+
+    def test_load_csv_data_empty_file(self):
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as f:
+            temp_path = f.name
+
+        try:
+            result = load_csv_data(temp_path, fieldnames=['category', 'tag'])
+            self.assertEqual(result, [])
+        finally:
+            os.remove(temp_path)
+
+
+class TestExtractDataframeSnippet(unittest.TestCase):
+
+    def test_extract_dataframe_snippet_string_bounds(self):
+        df = pd.DataFrame({
+            'Time (s)': [0.0, 1.0, 2.0, 3.0],
+            'val': [10, 20, 30, 40]
+        })
+
+        result = extract_dataframe_snippet(df, '1', '2')
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(result['Time (s)'].tolist(), [1.0, 2.0])
+
+    def test_extract_dataframe_snippet_float_bounds(self):
+        df = pd.DataFrame({
+            'Time (s)': [0.0, 1.5, 2.5, 4.0],
+            'val': [10, 20, 30, 40]
+        })
+
+        result = extract_dataframe_snippet(df, 1.0, 3.0)
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(result['Time (s)'].tolist(), [1.5, 2.5])
+
+
+class TestGenerateMetadata(unittest.TestCase):
+    @patch('sideseeing_tools.metadata.cv2.VideoCapture')
+    def test_includes_directory_and_subdirectory(self, video_capture):
+        video_capture.return_value.get.side_effect = lambda prop: {
+            cv2.CAP_PROP_FPS: 25, cv2.CAP_PROP_FRAME_COUNT: 100,
+            cv2.CAP_PROP_FRAME_WIDTH: 16, cv2.CAP_PROP_FRAME_HEIGHT: 12,
+        }[prop]
+        instance = SimpleNamespace(
+            name='capture-001',
+            video='video.mp4',
+            geolocation_center=None,
+            metadata={
+                'directory': 'CITY',
+                'subdirectory': 'ROUTE01-A',
+                'time': {
+                    'mediaStartDateTime': '2026-09-09T16:32:20.452Z',
+                    'mediaStopDateTime': '2026-09-09T16:33:09.271Z',
+                },
+                'device': {},
+            },
+        )
+
+        metadata = generate_metadata(iter([instance]), DATETIME_UTC_FORMAT)
+
+        self.assertEqual(metadata.loc[0, 'directory'], 'CITY')
+        self.assertEqual(metadata.loc[0, 'subdirectory'], 'ROUTE01-A')

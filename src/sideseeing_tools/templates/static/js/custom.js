@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lucide.createIcons();
     initSummaryMap();
-    initSidewalkAssessmentMap();
     renderTable(SAMPLES_DATA);
     showSection('summary');
     

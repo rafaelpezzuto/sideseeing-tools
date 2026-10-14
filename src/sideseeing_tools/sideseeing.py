@@ -1,59 +1,112 @@
 import datetime
 import json
+import math
 import os
 import random
 import re
+import tempfile
+from pathlib import Path
+
 import pandas as pd
 
 from sideseeing_tools import (
-    constants, 
+    archives,
+    constants,
     exceptions,
     media,
-    utils,
+    csv_io,
+    geolocation,
+    metadata,
+    network_data,
+    sensor_data,
+    snippets,
+    snippet_export,
 )
+
+SNIPPET_SUFFIX_PATTERN = r'\.-?\d+(?:\.\d+)?_-?\d+(?:\.\d+)?(?=\.(?:csv|json|mp4|wav|m4a)$)'
 
 
 class SideSeeingDS:
     def __init__(
-            self, 
-            root_dir,
-            subdir_data='.',
-            name='MyDataset', 
-            generate_metadata=False,
-            extract_media=False,
-            google_api_key=None,
-        ):
+        self,
+        root_dir,
+        subdir_data='.',
+        name='MyDataset',
+        generate_metadata=False,
+        extract_media=False,
+        google_api_key=None,
+    ):
         print('INFO. Loading data.')
         self.name = name
-        
-        if not os.path.isdir(root_dir):
+
+        root_dir = os.fsdecode(os.fspath(root_dir))
+        subdir_data = os.fsdecode(os.fspath(subdir_data))
+        self._temporary_data = None
+
+        if os.path.isfile(root_dir) and root_dir.lower().endswith('.zip'):
+            self.root_dir = root_dir
+            self._metadata_path = f'{os.path.splitext(root_dir)[0]}.metadata.csv'
+            self.data_dir = self._create_temporary_data_dir()
+            archives.extract_dataset_archive(root_dir, self.data_dir)
+            self._data_dirs = [self.data_dir]
+        elif os.path.isdir(root_dir):
+            self.root_dir = (
+                root_dir if root_dir.endswith(os.path.sep) else f'{root_dir}{os.path.sep}'
+            )
+            self._metadata_path = os.path.join(self.root_dir, 'metadata.csv')
+            self.data_dir = os.path.join(self.root_dir, subdir_data)
+            self._data_dirs = [self.data_dir]
+            self._include_archived_data()
+        else:
             raise exceptions.RootDirIsNotADirectoryError()
 
-        self.root_dir = root_dir if root_dir.endswith(os.path.sep) else f'{root_dir}{os.path.sep}'
-        self.data_dir = os.path.join(self.root_dir, subdir_data)
         self.setup(extract_media)
 
         if generate_metadata:
             self.metadata(generate_metadata, google_api_key)
+
         print('INFO. Done.')
+
+    def _create_temporary_data_dir(self):
+        if self._temporary_data is None:
+            self._temporary_data = tempfile.TemporaryDirectory(prefix='sideseeing-tools-')
+
+        return self._temporary_data.name
+
+    def _include_archived_data(self):
+        archive_paths = archives.find_zip_archives(self.data_dir)
+
+        if not archive_paths:
+            return
+
+        temporary_dir = self._create_temporary_data_dir()
+        archives.extract_dataset_archives(self.data_dir, temporary_dir, archive_paths)
+
+        self._data_dirs.append(temporary_dir)
 
     def setup(self, extract_media):
         self.instances = {}
         invalid_instances = []
 
-        for root, _, files in os.walk(self.data_dir):
-            for f in files:
-                if f not in constants.SUPPORTED_FILES:
-                    continue
+        for data_dir in self._data_dirs:
+            for root, _, files in os.walk(data_dir):
+                for f in files:
+                    ssf = SideSeeingFile(data_dir, os.path.join(root, f))
 
-                ssf = SideSeeingFile(self.data_dir, os.path.join(root, f))
-                if ssf.is_valid:
-                    if ssf.name not in self.instances:
-                        self.instances[ssf.name] = SideSeeingInstance(ssf.name, ssf.path)
-                    self.instances[ssf.name].add_file(ssf)
+                    if ssf.is_valid:
+                        if ssf.name not in self.instances:
+                            self.instances[ssf.name] = SideSeeingInstance(ssf.name, ssf.path)
+                            self.instances[ssf.name]._temporary_data = self._temporary_data
+                        elif os.path.realpath(self.instances[ssf.name].path) != os.path.realpath(
+                            ssf.path
+                        ):
+                            raise ValueError(f'Duplicate recording identifier: {ssf.name}')
+
+                        self.instances[ssf.name].add_file(ssf)
 
         for key in self.instances.keys():
             is_valid_instance = self.instances[key].setup(extract_media)
+
             if not is_valid_instance:
                 invalid_instances.append(key)
 
@@ -71,10 +124,13 @@ class SideSeeingDS:
 
         for instance in self.iterator:
             for n_axis in self.sensors.keys():
-                if hasattr(instance, n_axis):
-                    for name in getattr(instance, n_axis).keys():
+                sensor_dict = getattr(instance, n_axis, None)
+
+                if sensor_dict is not None:
+                    for name in sensor_dict.keys():
                         if name not in self.sensors[n_axis]:
                             self.sensors[n_axis][name] = set()
+
                         self.sensors[n_axis][name].add(instance.name)
 
     @property
@@ -93,16 +149,19 @@ class SideSeeingDS:
     def metadata(self, save=False, google_api_key=None):
         if self.size == 0:
             print(f'ERROR. Dataset is empty.')
+
             return
 
-        path = os.path.join(f'{self.root_dir}', 'metadata.csv')
+        path = self._metadata_path
 
         if os.path.exists(path) and not save:
-            df = utils.load_csv_data_with_pandas(path)
+            df = csv_io.load_csv_data_with_pandas(path)
 
         if not os.path.exists(path) or save:
-            df = utils.generate_metadata(self.iterator, constants.DATETIME_UTC_FORMAT, google_api_key)
-            utils.save_csv_data_with_pandas(df, path)
+            df = metadata.generate_metadata(
+                self.iterator, constants.DATETIME_UTC_FORMAT, google_api_key
+            )
+            csv_io.save_csv_data_with_pandas(df, path)
 
         return df
 
@@ -121,42 +180,29 @@ class SideSeeingFile:
 
     def setup(self):
         self.file_name = os.path.basename(self.file_path)
-        self.file_type = self.discover_file_type()
+        self.file_type = self._discover_file_type()
         self.path = os.path.dirname(self.file_path)
-        self.name = self.gen_instance_name(self.file_path, self.data_dir)
+        self.name = self._gen_instance_name(self.file_path, self.data_dir)
         self.is_valid = False if self.file_type == 'unknown' else True
 
-    def gen_instance_name(self, file_path, data_dir):
-        els = f'{os.path.dirname(file_path)}'.replace(data_dir, '').split(os.path.sep)
-        return '_'.join(els[1:])
+    def _gen_instance_name(self, file_path, data_dir):
+        instance_dir = os.path.dirname(file_path)
+        relative_dir = os.path.relpath(instance_dir, data_dir)
 
-    def discover_file_type(self):
-        if self.file_name.endswith('metadata.json'):
-            return 'metadata'
-        elif (self.file_name.endswith('labels.txt') or self.file_name.endswith('labels.csv')):
-            return 'label'
-        elif re.search(r'consumption(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'consumption'
-        elif re.search(r'gps(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'gps'
-        elif re.search(r'sensors\.three(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'sensors3'
-        elif re.search(r'sensors\.three\.uncalibrated(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'sensors6'
-        elif re.search(r'sensors\.one(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'sensors1'
-        elif re.search(r'cell(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'cell'
-        elif re.search(r'wifi(\.\d+_\d+)?\.csv$', self.file_name):
-            return 'wifi'
-        elif self.file_name.endswith('.mp4'):
-            return 'video'
-        elif self.file_name.endswith('video.wav'):
+        if relative_dir == os.curdir:
+            return os.path.basename(os.path.normpath(data_dir))
+
+        return '_'.join(relative_dir.split(os.path.sep))
+
+    def _discover_file_type(self):
+        filename = re.sub(SNIPPET_SUFFIX_PATTERN, '', self.file_name)
+
+        if filename in constants.FILE_TYPES:
+            return constants.FILE_TYPES[filename]
+        if filename.endswith('.audio.m4a'):
             return 'audio'
-        elif self.file_name.endswith('video.gif'):
-            return 'gif'
-        else:
-            return 'unknown'
+
+        return 'unknown'
 
     def __str__(self):
         return f'SSFile[file_path: {self.file_path}]'
@@ -171,7 +217,7 @@ class SideSeeingInstance:
         self.path = path
         self.files = {}
 
-    def add_file(self, ssf: SideSeeingFile):
+    def add_file(self, ssf):
         self.files[ssf.file_type] = ssf
 
     def __str__(self):
@@ -190,7 +236,7 @@ class SideSeeingInstance:
             f"Media start time: {self.media_start_time}",
             f"Media stop time: {self.media_stop_time}",
             f"Media total time: {self.media_total_time}",
-            sep='\n'
+            sep='\n',
         )
 
     def setup(self, extract_media=False):
@@ -203,307 +249,219 @@ class SideSeeingInstance:
         if self.metadata is None:
             return False
 
-        media_start_time = utils.extract_media_start_time(self.metadata)
-        media_stop_time = utils.extract_media_stop_time(self.metadata)
+        media_start_time = metadata.extract_media_start_time(self.metadata)
+        media_stop_time = metadata.extract_media_stop_time(self.metadata)
 
-        self.media_start_time = datetime.datetime.strptime(media_start_time, constants.DATETIME_UTC_FORMAT)
-        self.media_stop_time = datetime.datetime.strptime(media_stop_time, constants.DATETIME_UTC_FORMAT)
+        self.media_start_time = datetime.datetime.strptime(
+            media_start_time, constants.DATETIME_UTC_FORMAT
+        )
+        self.media_stop_time = datetime.datetime.strptime(
+            media_stop_time, constants.DATETIME_UTC_FORMAT
+        )
         self.media_total_time = (self.media_stop_time - self.media_start_time).total_seconds()
 
         attributes = [
-            'consumption', 'geolocation_points', 'geolocation_center', 
-            'sensors3', 'sensors6', 'sensors1', 'cell_networks',
-            'wifi_networks', 'label', 'video', 'audio', 'gif'
+            'consumption',
+            'geolocation_points',
+            'geolocation_center',
+            'sensors3',
+            'sensors6',
+            'sensors1',
+            'cell_networks',
+            'wifi_networks',
+            'label',
+            'video',
+            'audio',
+            'gif',
         ]
+
         for attr in attributes:
             setattr(self, attr, None)
 
+        for file_type in ('video', 'audio', 'gif'):
+            if file_type in self.files:
+                setattr(self, file_type, self.files[file_type].file_path)
+
+        if self.video is not None or self.audio is not None:
+            _, self.media_total_time = metadata.recording_reference(self)
+
         for k, v in self.files.items():
             if k == 'consumption':
-                self.consumption = utils.preprocess_consumption(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES),
+                self.consumption = sensor_data.preprocess_consumption(
+                    csv_io.load_csv_data(
+                        v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES
+                    ),
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
                     self.media_stop_time,
                 )
 
             if k == 'gps':
-                self.geolocation_points = utils.preprocess_gps(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES),
+                self.geolocation_points = sensor_data.preprocess_gps(
+                    csv_io.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES),
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
                     self.media_stop_time,
                 )
+
                 if not self.geolocation_points.empty:
-                    self.geolocation_center = self.geolocation_points[['latitude', 'longitude']].mean().tolist()
+                    self.geolocation_center = (
+                        self.geolocation_points[['latitude', 'longitude']].mean().tolist()
+                    )
                 else:
                     self.geolocation_center = None
 
             if k == 'sensors3':
-                self.sensors3 = utils.preprocess_sensors(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
+                self.sensors3 = sensor_data.preprocess_sensors(
+                    csv_io.load_csv_data(
+                        v.file_path, fieldnames=constants.THREE_AXES_SENSORS_FILE_FIELDNAMES
+                    ),
                     3,
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
-                    self.media_stop_time
+                    self.media_stop_time,
                 )
 
             if k == 'sensors6':
-                self.sensors6 = utils.preprocess_sensors(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
+                self.sensors6 = sensor_data.preprocess_sensors(
+                    csv_io.load_csv_data(
+                        v.file_path,
+                        fieldnames=constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES,
+                    ),
                     6,
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
-                    self.media_stop_time
+                    self.media_stop_time,
                 )
 
             if k == 'sensors1':
-                self.sensors1 = utils.preprocess_sensors(
-                    utils.load_csv_data(v.file_path, fieldnames=constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
+                self.sensors1 = sensor_data.preprocess_sensors(
+                    csv_io.load_csv_data(
+                        v.file_path, fieldnames=constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES
+                    ),
                     1,
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
-                    self.media_stop_time
+                    self.media_stop_time,
                 )
 
             if k == 'wifi':
-                self.wifi_networks = utils.process_wifi_networks(
+                self.wifi_networks = network_data.process_wifi_networks(
                     v.file_path,
                     datetime_format=constants.DATETIME_UTC_FORMAT,
                     start_time=self.media_start_time,
-                    end_time=self.media_stop_time
+                    end_time=self.media_stop_time,
                 )
 
             if k == 'cell':
-                self.cell_networks = utils.process_cell_networks(
+                self.cell_networks = network_data.process_cell_networks(
                     v.file_path,
                     datetime_format=constants.DATETIME_UTC_FORMAT,
                     start_time=self.media_start_time,
-                    end_time=self.media_stop_time
+                    end_time=self.media_stop_time,
                 )
 
             if k == 'label':
-                self.label = utils.load_csv_data(v.file_path, fieldnames=constants.LABELS_FILE_FIELDNAMES)
+                self.label = csv_io.load_csv_data(
+                    v.file_path, fieldnames=constants.LABELS_FILE_FIELDNAMES
+                )
 
-            if k == 'video':
-                self.video = v.file_path
-                if extract_media:
-                    self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
-                    self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
+            if k == 'video' and extract_media:
+                self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
+                self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
 
         return True
 
-    def extract_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename=False):
-        '''
-        Extract a snippet from the instance.
+    def extract_snippet(
+        self, start_time, end_time, output_dir, include_time_span_on_filename=False
+    ):
+        """Export a UTC-aligned recording interval; negative end means its end."""
+        start_time, end_time = snippets.normalize_snippet_time_bounds(start_time, end_time)
+        origin, duration = metadata.recording_reference(self)
+        start_time, end_time = snippets.resolve_snippet_time_bounds(start_time, end_time, duration)
+        destination = Path(output_dir)
 
-        Args:
-            start_time (int): The start time in seconds.
-            end_time (int): The end time in seconds.
-            output_dir (str): The output directory where the snippet will be saved.
-        
-        Returns:
-            None
-        '''
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
+        if destination.exists() and any(destination.iterdir()):
+            raise FileExistsError('Snippet destination is not empty')
 
-        self._write_gps_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+        destination.parent.mkdir(parents=True, exist_ok=True)
 
-        self._write_consumption_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
-            
-        self._write_sensors_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+        with tempfile.TemporaryDirectory(prefix='.snippet-', dir=destination.parent) as temporary:
+            staging = Path(temporary) / 'recording'
+            staging.mkdir()
 
-        self._write_cell_networks_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+            if self.video is not None:
+                filename = constants.VIDEO_FILE_NAME
 
-        self._write_wifi_networks_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
+                if include_time_span_on_filename:
+                    filename = constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time)
 
-        if include_time_span_on_filename:
-            video_output_path = os.path.join(output_dir, constants.VIDEO_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            video_output_path = os.path.join(output_dir, constants.VIDEO_FILE_NAME)
-
-        media.extract_video_snippet(
-            self.video, 
-            start_time, 
-            end_time, 
-            video_output_path,
-        )
-
-        self._write_metadata_snippet(start_time, end_time, output_dir, include_time_span_on_filename)
-
-    def _write_metadata_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        if include_time_span_on_filename:
-            metadata_output_path = os.path.join(output_dir, constants.METADATA_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            metadata_output_path = os.path.join(output_dir, constants.METADATA_FILE_NAME)
-
-        snippet_metadata = self.metadata.copy()
-        snippet_metadata['snippet'] = {
-            'start_time': start_time,
-            'end_time': end_time,
-            'total_time': end_time - start_time,
-        }
-
-        with open(metadata_output_path, 'w') as fout:
-            json.dump(snippet_metadata, fout, indent=4)
-
-    def _write_sensors_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        sensor_configs = [
-            ('sensors1', constants.ONE_AXIS_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.ONE_AXIS_FILE_NAME, constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES),
-            ('sensors3', constants.THREE_AXES_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.THREE_AXES_FILE_NAME, constants.THREE_AXES_SENSORS_FILE_FIELDNAMES),
-            ('sensors6', constants.THREE_AXES_UNCALIBRATED_SNIPPET_FILE_NAME if include_time_span_on_filename else constants.THREE_AXES_UNCALIBRATED_FILE_NAME, constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES),
-        ]
-
-        for naxes, file_name, fields in sensor_configs:
-            if include_time_span_on_filename:
-                output_file = os.path.join(output_dir, file_name.format(start_time, end_time))
+                media.extract_video_snippet(self.video, start_time, end_time, staging / filename)
             else:
-                output_file = os.path.join(output_dir, file_name)
+                extension = '.wav' if self.audio.lower().endswith('.wav') else '.m4a'
+                filename = 'audio' + extension
 
-            sensors = getattr(self, naxes, {})
+                if include_time_span_on_filename:
+                    filename = f'audio.{start_time}_{end_time}{extension}'
 
-            with open(output_file, 'w') as fout:
-                fout.write(','.join(fields) + '\n')
-                
-                for sensor_name, sensor_data in sensors.items():
-                    sensor_snippet_data = utils.extract_dataframe_snippet(sensor_data, start_time, end_time)
-                    axis_data = []
-                    for col in fields:
-                        if col in ['axis_x', 'axis_y', 'axis_z']:
-                            axis_data.append(col.replace('axis_', ''))
-                        elif col in ['delta_x', 'delta_y', 'delta_z']:
-                            axis_data.append(col.replace('delta_', ''))
+                media.extract_audio_snippet(self.audio, start_time, end_time, staging / filename)
 
-                    for _, row in sensor_snippet_data.iterrows():
-                        formatted_row = [
-                            row['timestamp_nano'],
-                            row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-                            sensor_name,
-                        ] + [row[a] for a in axis_data] + [row['accuracy']]
-        
-                        fout.write(','.join(map(str, formatted_row)) + '\n')
+            snippet_export.write_frame_snippets(
+                self, start_time, end_time, staging, include_time_span_on_filename, origin
+            )
+            snippet_export.write_sensors_snippet(
+                self, start_time, end_time, staging, include_time_span_on_filename, origin
+            )
+            snippet_export.write_metadata_snippet(
+                self, start_time, end_time, staging, include_time_span_on_filename
+            )
 
-    def _write_consumption_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        if include_time_span_on_filename:
-            consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            consumption_snippet_output_file = os.path.join(output_dir, constants.CONSUMPTION_FILE_NAME)
+            if destination.exists():
+                destination.rmdir()
 
-        if self.consumption is None:
-            print(f"WARNING. No consumption data available for the specified time range: {start_time} to {end_time}.")
-            return
+            staging.rename(destination)
 
-        consumption_snippet_data = utils.extract_dataframe_snippet(self.consumption, start_time, end_time)
-        if consumption_snippet_data is None or consumption_snippet_data.empty:
-            print(f"WARNING. No consumption data available for the specified time range: {start_time} to {end_time}.")
-            return
+        return destination
 
-        with open(consumption_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.CONSUMPTION_FILE_FIELDNAMES) + '\n')
-            for _, row in consumption_snippet_data.iterrows():
-                formatted_row = [
-                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-                    row['battery_microamperes']
-                ]
-                fout.write(','.join(map(str, formatted_row)) + '\n')
+    def split(self, segment_duration, output_dir):
+        """Export consecutive fixed-duration segments, keeping the final remainder."""
+        segment_duration = float(segment_duration)
 
-    def _write_gps_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        if include_time_span_on_filename:
-            gps_snippet_output_file = os.path.join(output_dir, constants.GPS_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            gps_snippet_output_file = os.path.join(output_dir, constants.GPS_FILE_NAME)
+        if not math.isfinite(segment_duration) or segment_duration <= 0:
+            raise ValueError('Segment duration must be positive and finite')
 
-        if self.geolocation_points is None:
-            print(f"WARNING. No GPS data available for the specified time range: {start_time} to {end_time}.")
-            return
+        _, duration = metadata.recording_reference(self)
+        destination = Path(output_dir)
 
-        gps_snippet_data = utils.extract_dataframe_snippet(self.geolocation_points, start_time, end_time)
-        if gps_snippet_data is None or gps_snippet_data.empty:
-                print(f"WARNING. No GPS data available for the specified time range: {start_time} to {end_time}.")
-                return
+        if destination.exists() and any(destination.iterdir()):
+            raise FileExistsError('Split destination is not empty')
 
-        with open(gps_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.GPS_FILE_FIELDNAMES) + '\n')
-            for _, row in gps_snippet_data.iterrows():
-                formatted_row = [
-                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-                    row['gps_interval'],
-                    row['accuracy'],
-                    row['latitude'],
-                    row['longitude']
-                ]
-                fout.write(','.join(map(str, formatted_row)) + '\n')
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        count = math.ceil(duration / segment_duration)
 
-    def _write_cell_networks_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        if include_time_span_on_filename:
-            cell_network_snippet_output_file = os.path.join(output_dir, constants.CELL_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            cell_network_snippet_output_file = os.path.join(output_dir, constants.CELL_FILE_NAME)
+        with tempfile.TemporaryDirectory(prefix='.split-', dir=destination.parent) as temporary:
+            staging = Path(temporary) / 'segments'
+            staging.mkdir()
 
-        if self.cell_networks is None:
-            print(f"WARNING. No cell network data available for the specified time range: {start_time} to {end_time}.")
-            return
+            for index in range(count):
+                start = index * segment_duration
+                end = min((index + 1) * segment_duration, duration)
+                self.extract_snippet(start, end, staging / f'segment-{index + 1:04d}')
 
-        cell_network_snippet_data = utils.extract_dataframe_snippet(self.cell_networks, start_time, end_time)
-        if cell_network_snippet_data is None or cell_network_snippet_data.empty:
-            print(f"WARNING. No cell network data available for the specified time range: {start_time} to {end_time}.")
-            return
+            if destination.exists():
+                destination.rmdir()
 
-        with open(cell_network_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.CELL_SNIPPET_HEADER) + '\n')
-            for _, row in cell_network_snippet_data.iterrows():
-                formatted_row = []
-                for key in constants.CELL_SNIPPET_HEADER:
-                    if key == 'Datetime UTC':
-                        formatted_row.append(row[key].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z')
-                    else:
-                        formatted_row.append(row[key])
-                fout.write(','.join(map(str, formatted_row)) + '\n')
+            staging.rename(destination)
 
-    def _write_wifi_networks_snippet(self, start_time, end_time, output_dir, include_time_span_on_filename):
-        if include_time_span_on_filename:
-            wifi_network_snippet_output_file = os.path.join(output_dir, constants.WIFI_SNIPPET_FILE_NAME.format(start_time, end_time))
-        else:
-            wifi_network_snippet_output_file = os.path.join(output_dir, constants.WIFI_FILE_NAME)
-
-        if self.wifi_networks is None:
-            print(f"WARNING. No wifi network data available for the specified time range: {start_time} to {end_time}.")
-            return
-
-        wifi_network_snippet_data = utils.extract_dataframe_snippet(self.wifi_networks, start_time, end_time)
-        if wifi_network_snippet_data is None or wifi_network_snippet_data.empty:
-            print(f"WARNING. No wifi network data available for the specified time range: {start_time} to {end_time}.")
-            return
-        
-        with open(wifi_network_snippet_output_file, 'w') as fout:
-            fout.write(','.join(constants.WIFI_SNIPPET_HEADER) + '\n')
-            for _, row in wifi_network_snippet_data.iterrows():
-                formatted_row = [
-                    row['Datetime UTC'].strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-                    row['SSID'],
-                    row['BSSID'],
-                    row['level'],
-                    row['frequency'],
-                    row['standard'],
-                ]
-                fout.write(','.join(map(str, formatted_row)) + '\n')
+        return [destination / f'segment-{index + 1:04d}' for index in range(count)]
 
     def extract_frames(self, output_dir=None, step=None, prefix='', left_zeros=5):
-        '''
-        Extract frames from the video.
+        """Return regularly spaced frames, or saved paths when output_dir is supplied."""
+        if self.video is None:
+            raise ValueError('Frame extraction requires a video recording')
 
-        Args:
-            output_dir (str): The output directory where the frames will be saved. If None, frames will be returned in memory.
-            step (int): The rate at which frames are extracted.
-            prefix (str): A prefix for the frame file names.
-            left_zeros (str): The number of left zeros for the frame file names.
-        
-        Returns:
-            list: A list of the extracted frames file paths or frames in memory if output_dir is None.
-        '''
         return media.extract_frames(
-            self.video, 
+            self.video,
             output_dir,
             step,
             prefix,
@@ -511,18 +469,10 @@ class SideSeeingInstance:
         )
 
     def extract_frames_at_times(self, times, output_dir=None, prefix='', left_zeros=5):
-        '''
-        Extract frames at specific times from the video.
+        """Return frames at requested seconds, or saved paths when output_dir is supplied."""
+        if self.video is None:
+            raise ValueError('Frame extraction requires a video recording')
 
-        Args:
-            times (list): A list of times in seconds.
-            output_dir (str): The output directory where the frames will be saved.
-            prefix (str): A prefix for the frame file names.
-            left_zeros (str): The number of left zeros for the frame file names.
-
-        Returns:
-            list: A list of the extracted frames file paths.
-        '''
         return media.extract_frames_at_times(
             self.video,
             times,
@@ -530,20 +480,12 @@ class SideSeeingInstance:
             prefix,
             left_zeros,
         )
-    
+
     def extract_frames_at_positions(self, positions, output_dir=None, prefix='', left_zeros=5):
-        '''
-        Extract frames at specific positions from the video.
+        """Return frames at requested positions, in memory or as saved paths."""
+        if self.video is None:
+            raise ValueError('Frame extraction requires a video recording')
 
-        Args:
-            positions (list): A list of frame positions.
-            output_dir (str): The output directory where the frames will be saved.
-            prefix (str): A prefix for the frame file names.
-            left_zeros (str): The number of left zeros for the frame file names.
-
-        Returns:
-            list: A list of the extracted frames file paths.
-        '''
         return media.extract_frames_at_positions(
             self.video,
             positions,
@@ -551,22 +493,14 @@ class SideSeeingInstance:
             prefix,
             left_zeros,
         )
-    
-    def extract_frames_timespan(self, start_time, end_time, output_dir=None, step=None, prefix='', left_zeros=5):
-        '''
-        Extract frames from a timespan of the video.
 
-        Args:
-            start_time (int): The start time in seconds.
-            end_time (int): The end time in seconds.
-            output_dir (str): The output directory where the frames will be saved.
-            step (int): The rate at which frames are extracted.
-            prefix (str): A prefix for the frame file names.
-            left_zeros (str): The number of left zeros for the frame file names.
+    def extract_frames_timespan(
+        self, start_time, end_time, output_dir=None, step=None, prefix='', left_zeros=5
+    ):
+        """Return frames within an interval in seconds, in memory or as saved paths."""
+        if self.video is None:
+            raise ValueError('Frame extraction requires a video recording')
 
-        Returns:
-            list: A list of the extracted frames file paths.
-        '''
         return media.extract_frames_timespan(
             self.video,
             start_time,
@@ -577,21 +511,13 @@ class SideSeeingInstance:
             left_zeros,
         )
 
-    def extract_frames_positionspan(self, start_position, end_position, output_dir=None, step=None, prefix='', left_zeros=5):
-        '''
-        Extract frames from a position span of the video.
+    def extract_frames_positionspan(
+        self, start_position, end_position, output_dir=None, step=None, prefix='', left_zeros=5
+    ):
+        """Return frames within a position interval, in memory or as saved paths."""
+        if self.video is None:
+            raise ValueError('Frame extraction requires a video recording')
 
-        Args:
-            start_position (int): The start position in frames.
-            end_position (int): The end position in frames.
-            output_dir (str): The output directory where the frames will be saved.
-            step (int): The rate at which frames are extracted.
-            prefix: (str): A prefix for the frame file names.
-            left_zeros (str): The number of left zeros for the frame file names.
-
-        Returns:
-            list: A list of the extracted frames file paths.
-        '''
         return media.extract_frames_positionspan(
             self.video,
             start_position,
@@ -601,34 +527,31 @@ class SideSeeingInstance:
             prefix,
             left_zeros,
         )
-    
-    def calculate_sample_distance_traveled(self) -> float:
-        """ 
-        Calculates the distance traveled within a single sample, in km.
-        """
-        df_gps = self.geolocation_points
+
+    def calculate_sample_distance_traveled(self):
+        """Calculates the distance traveled within a single sample, in km."""
+        df_gps = self.geolocation_points.copy() if self.geolocation_points is not None else None
+
         if df_gps is None or df_gps.empty or len(df_gps) < 2:
             return 0.0
-            
+
         df_gps = df_gps.sort_values(by='Datetime UTC')
         df_gps['latitude'] = pd.to_numeric(df_gps['latitude'], errors='coerce')
         df_gps['longitude'] = pd.to_numeric(df_gps['longitude'], errors='coerce')
         df_gps = df_gps.dropna(subset=['latitude', 'longitude'])
-        
+
         if len(df_gps) < 2:
             return 0.0
 
-        # Calculate the distance between consecutive points using pandas vector operations.
         df_gps['latitude_next'] = df_gps['latitude'].shift(-1)
         df_gps['longitude_next'] = df_gps['longitude'].shift(-1)
         mask = df_gps['latitude_next'].notnull() & df_gps['longitude_next'].notnull()
-        
+
         distances = df_gps.loc[mask].apply(
-            lambda row: utils.calculate_haversine_distance(
-                row['latitude'], row['longitude'],
-                row['latitude_next'], row['longitude_next']
+            lambda row: geolocation.calculate_haversine_distance(
+                row['latitude'], row['longitude'], row['latitude_next'], row['longitude_next']
             ),
-            axis=1
+            axis=1,
         )
 
         return float(distances.sum())

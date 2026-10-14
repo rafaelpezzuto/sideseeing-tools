@@ -36,7 +36,7 @@
     <aside id="sidebar" class="fixed lg:relative top-0 left-0 h-full w-64 bg-slate-900 text-white z-40 transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 flex flex-col">
         <div class="p-6 border-b border-slate-700 flex items-center justify-between">
             <div>
-                <div class="font-bold text-xl">SideSeeing</div>
+                <div class="font-bold text-xl">{{ 'XYZ' if anonymous else 'SideSeeing' }}</div>
                 <div class="text-sm text-gray-500">Report</div>
             </div>
             <button id="sidebar-close-btn" class="lg:hidden text-slate-400 hover:text-white">
@@ -71,7 +71,7 @@
                     <a href="#" data-section="video" class="nav-link flex items-center gap-3 px-4 py-3 text-slate-600 rounded-lg cursor-not-allowed opacity-75">
                         <i data-lucide="video" size="18"></i><span class="font-medium text-sm">Video Frames</span>
                     </a>
-                    <a href="#" data-section="anonymization" class="nav-link flex items-center gap-3 px-4 py-3 text-slate-600 rounded-lg cursor-not-allowed opacity-75">
+                    <a href="#" data-section="anonymization" class="nav-link flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
                         <i data-lucide="hat-glasses" size="18"></i><span class="font-medium text-sm">Anonymization</span>
                     </a>
                 </div>
@@ -84,9 +84,11 @@
                     <i data-lucide="chevron-down" size="16" class="menu-toggle-icon"></i>
                 </button>
                 <div id="submenu-analysis" class="submenu mt-2 space-y-1">
-                    <a href="#" data-section="sidewalk-assessment" class="nav-link flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
-                        <i data-lucide="cpu" size="18"></i><span class="font-medium text-sm">Sidewalk Assessment</span>
+                    {% if viewer_url %}
+                    <a href="{{ viewer_url | e }}" target="_blank" rel="noopener" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg">
+                        <i data-lucide="external-link" size="18"></i><span class="font-medium text-sm">Visual Results Viewer</span>
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -106,9 +108,9 @@
                     <a href="#" data-section="about" class="nav-link flex items-center gap-3 px-4 py-3 text-slate-600 rounded-lg cursor-not-allowed opacity-75">
                         <i data-lucide="info" size="18"></i><span class="font-medium text-sm">About</span>
                     </a>
-                    <a href="https://sites.usp.br/sideseeing" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+                    {% if not anonymous %}<a href="https://sites.usp.br/sideseeing" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
                         <i data-lucide="external-link" size="18"></i><span class="font-medium text-sm">SideSeeing Portal</span>
-                    </a>
+                    </a>{% endif %}
                 </div>
             </div>
         </nav>
@@ -116,7 +118,7 @@
         <div class="p-6 border-t border-slate-800 text-xs text-slate-500">
             <p>Generated on: <span>{{ generation_date }}</span></p>
             <p>Version: <span>{{ version }}</span></p>
-            <p class="mt-1">SideSeeing Team - IME/USP</p>
+            {% if not anonymous %}<p class="mt-1">SideSeeing Team - IME/USP</p>{% endif %}
         </div>
     </aside>
 
@@ -153,7 +155,7 @@
 
             {% include 'video.html' %}
 
-            {% include 'sidewalk-assessment.html' %}
+            {% include 'visual-gallery.html' %}
             
         </div>
     </main>
@@ -166,7 +168,6 @@
     </script>
     <script src="static/js/map_utils.js"></script>
     <script src="static/js/summary.js"></script>
-    <script src="static/js/sidewalk_assessment.js"></script>
     <script src="static/js/geo.js"></script>
     <script src="static/js/sensor.js"></script>
     <script src="static/js/wifi.js"></script>

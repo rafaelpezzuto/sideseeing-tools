@@ -1,31 +1,31 @@
 <div id="summary-section" class="section-content active max-w-7xl mx-auto space-y-8">
-    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+    <section class="summary-cards">
+        <div class="summary-card bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="p-3 rounded-lg text-white bg-blue-500"><i data-lucide="file-text"></i></div>
-            <div>
+            <div class="summary-card-content">
                 <p class="text-sm text-gray-500 font-medium">Total Samples</p>
-                <p class="text-2xl font-bold text-gray-900">{{ summary.total_instances }}</p>
+                <p class="summary-total font-bold text-gray-900">{{ summary.total_instances }}</p>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div class="summary-card bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="p-3 rounded-lg text-white bg-emerald-500"><i data-lucide="clock"></i></div>
-            <div>
-                <p class="text-sm text-gray-500 font-medium">Total Duration</p>
-                <p class="text-2xl font-bold text-gray-900">{{ summary.total_duration_human }}</p>
+            <div class="summary-card-content">
+                <p class="text-sm text-gray-500 font-medium">Media Duration</p>
+                <p class="summary-total font-bold text-gray-900">{{ summary.total_duration_human }}</p>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div class="summary-card bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="p-3 rounded-lg text-white bg-violet-500"><i data-lucide="database"></i></div>
-            <div>
+            <div class="summary-card-content">
                 <p class="text-sm text-gray-500 font-medium">Dataset Size</p>
-                <p class="text-2xl font-bold text-gray-900">{{ "%.2f"|format(summary.total_size_gb) }} GB</p>
+                <p class="summary-total font-bold text-gray-900">{{ "%.2f"|format(summary.total_size_gb) }} GB</p>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+        <div class="summary-card bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="p-3 rounded-lg text-white bg-orange-500"><i data-lucide="map-pin"></i></div>
-            <div>
-                <p class="text-sm text-gray-500 font-medium">Distance</p>
-                <p class="text-2xl font-bold text-gray-900">{{ "%.2f"|format(summary.total_distance_km) }} km</p>
+            <div class="summary-card-content">
+                <p class="text-sm text-gray-500 font-medium">GPS Polyline</p>
+                <p class="summary-total font-bold text-gray-900">{{ "%.2f"|format(summary.total_distance_km) }} km</p>
             </div>
         </div>
     </section>

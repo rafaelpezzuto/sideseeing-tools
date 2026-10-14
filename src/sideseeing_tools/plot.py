@@ -3,51 +3,50 @@ import folium
 import librosa
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib import animation
 import numpy as np
 import pandas as pd
 
-from matplotlib import animation
-
-from sideseeing_tools import constants, media, utils
-from sideseeing_tools import sideseeing as sst
+from sideseeing_tools import constants, media, csv_io, geolocation
 
 
 class SideSeeingPlotter:
-    def __init__(self, dataset: sst.SideSeeingDS, path_taxonomy: str=None, google_api_key: str=None):
+    def __init__(self, dataset, path_taxonomy=None, google_api_key=None):
         self.dataset = dataset
+
         if path_taxonomy:
-            self.categories_and_tags = utils.load_csv_data(path_taxonomy, fieldnames=constants.LABELS_FILE_FIELDNAMES)
+            self.categories_and_tags = csv_io.load_csv_data(
+                path_taxonomy, fieldnames=constants.LABELS_FILE_FIELDNAMES
+            )
         else:
             self.categories_and_tags = []
+
         self.google_api_key = google_api_key
 
-    def plot_instance_audio(self, instance: sst.SideSeeingInstance):
-        '''
-        Plots the waveform and the Mel spectrogram for the specified audio file.
-        '''
-        if not hasattr(instance, 'audio'):
+    def plot_instance_audio(self, instance):
+        """Plots the waveform and the Mel spectrogram for the specified audio file."""
+        if getattr(instance, 'audio', None) is None:
             print(f'Extracting audio data')
             instance.audio = media.extract_audio(
-                instance.video, 
-                instance.video.replace('.mp4', '.wav')
+                instance.video, instance.video.replace('.mp4', '.wav')
             )
 
         y, sr = librosa.load(instance.audio)
-        M = librosa.feature.melspectrogram(y=y, sr=sr)
-        M_db = librosa.power_to_db(M, ref=np.max)
+        mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
+        mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
 
         fig, ax = plt.subplots(nrows=2, sharex=True)
         librosa.display.waveshow(y, sr=sr, ax=ax[0], color="blue")
         ax[0].set(title='Waveform')
         ax[0].label_outer()
 
-        img1 = librosa.display.specshow(M_db, y_axis='mel', x_axis='time', ax=ax[1])
+        img1 = librosa.display.specshow(mel_db, y_axis='mel', x_axis='time', ax=ax[1])
         ax[1].set(title='Mel spectrogram')
         fig.colorbar(img1, ax=ax[1], format="%+2.f dB", location='bottom')
         plt.tight_layout()
         plt.show()
 
-    def plot_instance_map(self, instance: sst.SideSeeingInstance, titles='OpenStreetMap', zoom_start=14):        
+    def plot_instance_map(self, instance, titles='OpenStreetMap', zoom_start=14):
         points = instance.geolocation_points[['latitude', 'longitude']].values.tolist()
         center = instance.geolocation_center
 
@@ -67,14 +66,13 @@ class SideSeeingPlotter:
                 counter += 1
 
             folium.LayerControl().add_to(map)
+
             return map
         else:
             print('WARNING. GPS data is missing.')
 
-    def plot_instance_video_frames(self, instance: sst.SideSeeingInstance):
-        '''
-        Plots a sample of frames for the specified video.
-        '''
+    def plot_instance_video_frames(self, instance):
+        """Plots a sample of frames for the specified video."""
         cap = cv2.VideoCapture(instance.video)
         fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -103,10 +101,8 @@ class SideSeeingPlotter:
         plt.show()
         cap.release()
 
-    def plot_instance_video_frames_at_times(self, instance: sst.SideSeeingInstance, times: list, show_frame_number=True):
-        '''
-        Plots frames for the specified video at the given time points.
-        '''
+    def plot_instance_video_frames_at_times(self, instance, times, show_frame_number=True):
+        """Plots frames for the specified video at the given time points."""
         cap = cv2.VideoCapture(instance.video)
         fps = cap.get(cv2.CAP_PROP_FPS)
         num_frames = len(times)
@@ -126,6 +122,7 @@ class SideSeeingPlotter:
 
         rc = 0
         cc = 0
+
         for i, time_in_seconds in enumerate(times):
             frame_idx = int(time_in_seconds * fps)
 
@@ -141,8 +138,9 @@ class SideSeeingPlotter:
                 ax = axes[cc]
 
             ax.imshow(frame_rgb)
+
             if show_frame_number:
-                ax.set_title(f'{time_in_seconds:.1f} s' )
+                ax.set_title(f'{time_in_seconds:.1f} s')
 
             ax.set_xticks([])
             ax.set_yticks([])
@@ -158,16 +156,15 @@ class SideSeeingPlotter:
         plt.show()
         cap.release()
 
-    def plot_instance_sensors3_and_audio(self, instance: sst.SideSeeingInstance, main_title='', x_ti=0, x_tf=None):
-        '''
-        Creates a plot for the sensors and audio data.
-        It is useful for plotting data related with an instance/sample.
-        '''
+    def plot_instance_sensors3_and_audio(self, instance, main_title='', x_ti=0, x_tf=None):
+        """Creates a plot for the sensors and audio data."""
         num_sensor_subplots = len(instance.sensors3.keys())
         num_audio_subplots = 2
         total_subplots = num_sensor_subplots + num_audio_subplots
 
-        fig, axis = plt.subplots(total_subplots, 2, figsize=(15, 15), width_ratios=[3, 1], sharex=False)
+        fig, axis = plt.subplots(
+            total_subplots, 2, figsize=(15, 15), width_ratios=[3, 1], sharex=False
+        )
         fig.suptitle(main_title, fontsize=15)
 
         for ind, sensor_name in enumerate(sorted(instance.sensors3.keys())):
@@ -193,16 +190,15 @@ class SideSeeingPlotter:
             axis[ind, 1].legend()
 
             if ind == num_sensor_subplots - 1:
-                if not hasattr(instance, 'audio'):
+                if getattr(instance, 'audio', None) is None:
                     print(f'Extracting audio data')
                     instance.audio = media.extract_audio(
-                        instance.video, 
-                        instance.video.replace('.mp4', '.wav')
+                        instance.video, instance.video.replace('.mp4', '.wav')
                     )
 
                 y, sr = librosa.load(instance.audio)
-                M = librosa.feature.melspectrogram(y=y, sr=sr)
-                M_db = librosa.power_to_db(M, ref=np.max)
+                mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
+                mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
 
                 librosa.display.waveshow(y, sr=sr, ax=axis[ind + 1, 0], color="blue")
                 axis[ind + 1, 0].set_xlim((x_ti, x_tf))
@@ -210,21 +206,13 @@ class SideSeeingPlotter:
                 axis[ind + 1, 0].set_xlabel('Time (s)')
 
                 img = librosa.display.specshow(
-                        M_db,
-                        y_axis='mel',
-                        x_axis='time',
-                        ax=axis[ind + 2, 0]
+                    mel_db, y_axis='mel', x_axis='time', ax=axis[ind + 2, 0]
                 )
                 axis[ind + 2, 0].set_xlim((x_ti, x_tf))
                 axis[ind + 2, 0].set_ylabel('Mel spectrogram (Hz)')
                 axis[ind + 2, 0].set_xlabel('Time (s)')
 
-                fig.colorbar(
-                        img,
-                        ax=axis[ind + 2, 1],
-                        format="%+2.f dB",
-                        location='left'
-                )
+                fig.colorbar(img, ax=axis[ind + 2, 1], format="%+2.f dB", location='left')
 
                 axis[ind + 1, 1].axis('off')
                 axis[ind + 2, 1].axis('off')
@@ -235,23 +223,27 @@ class SideSeeingPlotter:
     def plot_dataset_tags(self):
         if len(self.categories_and_tags) == 0:
             print('WARNING. There are no categories and tags loaded. Check the taxonomy file.')
+
             return
 
         labels = {}
+
         for l in self.categories_and_tags:
             cat, tag = l['category'], l['tag']
             k = f'{cat},{tag}'.replace(' ', '_')
             labels[k] = 0
 
         for instance in self.dataset.iterator:
-            if not hasattr(instance, 'label'):
+            if getattr(instance, 'label', None) is None:
                 print(f"WARNING. {instance.name} isn't labeled.")
             else:
                 for l in instance.label:
                     cat, tag = l['category'], l['tag']
                     k = f'{cat},{tag}'.replace(' ', '_')
+
                     if k not in labels:
                         labels[k] = 0
+
                     labels[k] += 1
 
         df = pd.DataFrame.from_dict(data=labels, orient='index', columns=['Frequency'])
@@ -259,16 +251,18 @@ class SideSeeingPlotter:
         df = df.astype(int)
         df = df.sort_values('Frequency', ascending=False)
 
-        return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
-    
+        return df.style.map(func=lambda x: 'color: red' if x < 1 else 'color: black')
+
     def plot_dataset_tags_matrix(self, primary_category, secondary_category):
         if len(self.categories_and_tags) == 0:
             print('WARNING. There are no categories and tags loaded. Check the taxonomy file.')
+
             return
-        
+
         if primary_category is None or secondary_category is None:
             print(f'ERROR. You must pass a category name.')
             print(f'Here are the possibilities: {self.categories_and_tags.keys()}.')
+
             return
 
         matrix = {}
@@ -289,17 +283,20 @@ class SideSeeingPlotter:
                     matrix[st][t] = 0
 
         for instance in self.dataset.iterator:
-            if not hasattr(instance, 'label'):
+            if getattr(instance, 'label', None) is None:
                 print(f"WARNING. {instance.name} isn't labeled.")
             else:
                 instance_st = set()
+
                 for l in instance.label:
                     cat, tag = l['category'], l['tag']
+
                     if cat == primary_category:
                         instance_st.add(tag)
 
                 for l in instance.label:
                     cat, tag = l['category'], l['tag']
+
                     if cat == secondary_category:
                         for s in instance_st:
                             matrix[s][tag] += 1
@@ -308,10 +305,15 @@ class SideSeeingPlotter:
         df = df.fillna(0)
         df = df.astype(int)
 
-        return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
-    
+        return df.style.map(func=lambda x: 'color: red' if x < 1 else 'color: black')
+
     def plot_dataset_map(self, titles='OpenStreetMap', zoom_start=4):
-        points = np.vstack([i.geolocation_points[['latitude', 'longitude']].values.tolist() for i in self.dataset.iterator])
+        points = np.vstack(
+            [
+                i.geolocation_points[['latitude', 'longitude']].values.tolist()
+                for i in self.dataset.iterator
+            ]
+        )
         center = points.mean(axis=0)
 
         ds_map = folium.Map(location=center, titles=titles, zoom_start=zoom_start)
@@ -320,14 +322,16 @@ class SideSeeingPlotter:
             folium.Marker([lat, lon]).add_to(ds_map)
 
         folium.LayerControl().add_to(ds_map)
+
         return ds_map
 
     def plot_dataset_cities(self):
         points = np.vstack([i.geolocation_center for i in self.dataset.iterator])
 
         geo = {}
+
         for lat, long in points:
-            location = utils.inverse_geocode(lat, long, self.google_api_key)
+            location = geolocation.inverse_geocode(lat, long, self.google_api_key)
             key = f"{location['country']},{location['city']}"
 
             if key not in geo:
@@ -339,12 +343,26 @@ class SideSeeingPlotter:
         df = df.fillna(0)
         df = df.sort_values('Frequency', ascending=False)
 
-        return df.style.applymap(func=lambda x: 'color: red' if x < 1 else 'color: black')
+        return df.style.map(func=lambda x: 'color: red' if x < 1 else 'color: black')
 
-    def generate_video_for_sensor(self, data, time_column, axis_columns, output_path, start_second=None, end_second=None, xlim=None, ylim=None, use_dynamic_xaxis=False, dpi=90, figsize = (25, 4), linewidth=5):
+    def generate_video_for_sensor(
+        self,
+        data,
+        time_column,
+        axis_columns,
+        output_path,
+        start_second=None,
+        end_second=None,
+        xlim=None,
+        ylim=None,
+        use_dynamic_xaxis=False,
+        dpi=90,
+        figsize=(25, 4),
+        linewidth=5,
+    ):
         if start_second and end_second:
             data = data[(data['Time (s)'] >= start_second) & (data['Time (s)'] <= end_second)]
-    
+
         data['Time (s)'] = data['Time (s)'] - data['Time (s)'].iloc[0]
         data = data.reset_index(drop=True)
 
@@ -353,7 +371,7 @@ class SideSeeingPlotter:
         mpl.rcParams['lines.linewidth'] = linewidth
         mpl.rcParams['font.family'] = "monospace"
 
-        fig, ax = plt.subplots(1, 1, figsize = figsize)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
 
         time_min = np.min(data[time_column])
         time_max = np.max(data[time_column])
@@ -361,7 +379,7 @@ class SideSeeingPlotter:
         axis_max = np.max(np.max(data[axis_columns]))
         axis_dt = int(abs((axis_max - axis_min)) * 0.1) or 1
 
-        fps = int(len(data['x'])/time_max)
+        fps = int(len(data['x']) / time_max)
 
         def animate(i):
             ax.cla()
@@ -392,7 +410,9 @@ class SideSeeingPlotter:
             for col in axis_columns:
                 ax.plot(data[time_column][:i], data[col][:i])
 
-        anim = animation.FuncAnimation(fig, animate, frames=len(data['x']), interval=200, blit=False, repeat=False)
+        anim = animation.FuncAnimation(
+            fig, animate, frames=len(data['x']), interval=200, blit=False, repeat=False
+        )
         plt.subplots_adjust(left=0.01, right=1, top=1, bottom=0.01)
         anim.save(
             output_path,
@@ -400,19 +420,29 @@ class SideSeeingPlotter:
             dpi=dpi,
             fps=fps,
             writer='ffmpeg',
-            savefig_kwargs={
-            "transparent": True,
-            "facecolor": "Black"
-            }
+            savefig_kwargs={"transparent": True, "facecolor": "Black"},
         )
 
     def plot_dataset_frames_at_times(self, times, show_instance_name=True, show_frame_number=True):
         for instance in self.dataset.iterator:
             if show_instance_name:
                 print(instance.name)
-            self.plot_instance_video_frames_at_times(instance, times=times, show_frame_number=show_frame_number)
 
-    def plot_sensor(self, data, time_column, axis_columns, xlim=None, ylim=None, title=None, linewidth=0.75, figsize=(20, 4)):
+            self.plot_instance_video_frames_at_times(
+                instance, times=times, show_frame_number=show_frame_number
+            )
+
+    def plot_sensor(
+        self,
+        data,
+        time_column,
+        axis_columns,
+        xlim=None,
+        ylim=None,
+        title=None,
+        linewidth=0.75,
+        figsize=(20, 4),
+    ):
         fig, ax = plt.subplots(nrows=1, figsize=figsize)
 
         for ind, a in enumerate(axis_columns):
@@ -427,27 +457,46 @@ class SideSeeingPlotter:
             ax.set_ylim(ylim)
 
         ax.legend()
+
         return fig, ax
 
-    def plot_sensors(self, data, time_column, axis_columns, xlim=None, ylim=None, linewidth=0.75, sharex=True, sharey=True):
+    def plot_sensors(
+        self,
+        data,
+        time_column,
+        axis_columns,
+        xlim=None,
+        ylim=None,
+        linewidth=0.75,
+        sharex=True,
+        sharey=True,
+    ):
         if len(data) == 0:
             return None, None
 
-        fig, axis = plt.subplots(len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey)
+        fig, axis = plt.subplots(
+            len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey
+        )
 
         for ind_plot, item in enumerate(data):
             instance_name = item['instance_name']
             sensor_data = item['sensor_data']
 
             for ind, column in enumerate(axis_columns):
-                axis[ind_plot].plot(sensor_data[time_column], sensor_data[column], label=axis_columns[ind], linewidth=linewidth)
+                axis[ind_plot].plot(
+                    sensor_data[time_column],
+                    sensor_data[column],
+                    label=axis_columns[ind],
+                    linewidth=linewidth,
+                )
                 axis[ind_plot].set_title(instance_name)
                 axis[ind_plot].legend()
-    
+
             if xlim:
                 axis[ind_plot].set_xlim(xlim)
             if ylim:
                 axis[ind_plot].set_ylim(ylim)
 
         plt.tight_layout()
-        return fig, axis 
+
+        return fig, axis
