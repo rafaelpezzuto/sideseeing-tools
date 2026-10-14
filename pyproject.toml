@@ -2,7 +2,7 @@
 name = "sideseeing-tools"
 version = "0.11.0"
 authors = [
-  {name="Rafael J. P. Damaceno", email="rafael.damaceno@ime.usp.br"},
+  {name="Rafael J. P. Damaceno", email="rafael.pezzuto@gmail.com"},
   {name="Renzo Filho", email="renzo.filho@usp.br"},
 ]
 description = "A set of tools to load, preprocess and analyze data collected through the MultiSensor Data Collection App"
