@@ -11,7 +11,7 @@ import reverse_geocode
 from datetime import timedelta
 from math import radians, sin, cos, sqrt, asin
 
-from .constants import CELL_SNIPPET_HEADER
+from sideseeing_tools.constants import CELL_SNIPPET_HEADER
 
 
 def load_csv_data(path: str, fieldnames: list, delimiter=','):

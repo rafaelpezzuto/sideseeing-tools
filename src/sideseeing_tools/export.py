@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import shutil
 
-from . import sideseeing, utils
+from sideseeing_tools import sideseeing, utils
 
 
 class Report:
