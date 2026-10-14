@@ -1,6 +1,6 @@
 [project]
 name = "sideseeing-tools"
-version = "0.10.1"
+version = "0.11.0"
 authors = [
   {name="Rafael J. P. Damaceno", email="rafael.damaceno@ime.usp.br"},
   {name="Renzo Filho", email="renzo.filho@usp.br"},
@@ -10,15 +10,16 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
 dependencies = [
-  "decorator",
   "folium",
   "imageio",
+  "jinja2",
   "librosa",
   "matplotlib",
   "moviepy>=2.0.0",
   "numpy",
   "opencv-python",
-  "pandas",
+  "pandas>=2.1",
+  "requests",
   "reverse-geocode",
 ]
 classifiers = [
@@ -28,18 +29,21 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["pytest",]
+har = ["tensorflow-cpu>=2.20,<2.21", "scikit-learn>=1.5"]
+vision = ["torch>=2.7", "transformers>=5.0,<6", "Pillow>=10"]
 
 [project.urls]
 Homepage = "https://github.com/rafaelpezzuto/sideseeing-tools"
 Issues = "https://github.com/rafaelpezzuto/sideseeing-tools/issues"
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests",]
 python_files = ["test_*.py",]
 
 [tool.setuptools.package-data]
 "tests" = ["*"]
-"sideseeing_tools" = ["templates/**/*"]
+"sideseeing_tools" = ["templates/**/*", "models/activity/*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
