@@ -59,3 +59,14 @@ body { font-family: 'Inter', sans-serif; }
     height: 100% !important;
     border-radius: 0 !important;
 }
+
+/* Fit overview cards to the content area, including the visible sidebar. */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 16px;
+}
+.summary-card { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.summary-card > :first-child { flex-shrink: 0; }
+.summary-card-content { min-width: 0; }
+.summary-total { white-space: nowrap; font-size: clamp(18px, 1.7vw, 24px); line-height: 1.3; }

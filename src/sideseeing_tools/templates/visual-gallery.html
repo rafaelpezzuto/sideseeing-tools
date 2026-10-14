@@ -1,0 +1,26 @@
+<div id="anonymization-section" class="section-content max-w-7xl mx-auto space-y-6">
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold">Visual redaction</h2>
+            <p class="text-sm text-gray-500 mt-1">Sensitive regions obscured using predicted masks. Outputs require visual review.</p>
+        </div>
+        {% if visual_gallery %}
+        <div class="px-6 pt-4">
+            <label for="redaction-frame-select" class="text-sm font-medium">Frame</label>
+            <select id="redaction-frame-select" class="ml-3 border rounded px-3 py-2 text-sm" onchange="document.querySelectorAll('#anonymization-section figure').forEach((item, index) => item.hidden = index !== Number(this.value))">
+                {% for item in visual_gallery %}
+                <option value="{{ loop.index0 }}">{{ item.source_id | e }} &middot; {{ '%.2f'|format(item.timestamp_s) if item.timestamp_s is not none else 'Time unavailable' }} s</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        {% for item in visual_gallery %}
+        <figure class="p-6 border-b border-gray-100" {% if not loop.first %}hidden{% endif %}>
+            <figcaption class="text-sm text-gray-600 mb-3">{{ item.source_id | e }} &middot; {{ '%.2f'|format(item.timestamp_s) if item.timestamp_s is not none else 'Time unavailable' }} s</figcaption>
+            <img src="{{ item.image }}" class="w-full rounded-lg" alt="Redacted frame">
+        </figure>
+        {% else %}
+        <p class="p-6 text-gray-500">No processed visual results supplied.</p>
+        {% endfor %}
+    </section>
+</div>
