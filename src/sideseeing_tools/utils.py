@@ -21,6 +21,7 @@ from sideseeing_tools.sensor_data import (
 )
 
 from sideseeing_tools.network_data import (
+    parse_cell_info,
     parse_wcdma,
     process_cell_networks,
     process_wifi_networks,

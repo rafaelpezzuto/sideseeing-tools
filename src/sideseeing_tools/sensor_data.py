@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 import pandas as pd
 
+from sideseeing_tools.constants import CELL_SNIPPET_HEADER
+
 DEFAULT_TARGET_FPS = 30
 
 
@@ -156,26 +158,7 @@ def to_dataframe(data, num_axes, datetime_format, data_type='sensor', create_tim
         columns.extend(['SSID', 'BSSID', 'level', 'frequency', 'standard'])
 
     elif data_type == 'cell':
-        columns.extend(
-            [
-                'timestamp',
-                'registered',
-                'connection_status',
-                'lac',
-                'cid',
-                'psc',
-                'uarfcn',
-                'mcc',
-                'mnc',
-                'ss',
-                'alpha_long',
-                'alpha_short',
-                'ber',
-                'rscp',
-                'ecno',
-                'level',
-            ]
-        )
+        columns = list(CELL_SNIPPET_HEADER)
 
     df = pd.DataFrame(data, columns=columns)
 
