@@ -11,15 +11,12 @@ license = { file = "LICENSE" }
 requires-python = ">=3.9"
 dependencies = [
   "folium",
-  "imageio",
   "jinja2",
-  "librosa",
   "matplotlib",
   "moviepy>=2.0.0",
   "numpy",
   "opencv-python",
   "pandas>=2.1",
-  "requests",
   "reverse-geocode",
 ]
 classifiers = [
