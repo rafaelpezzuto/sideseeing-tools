@@ -85,6 +85,7 @@ def extract_gif(source_path, target_path, target_width=300, target_fps=5):
 
         if gif_frames_list:
             with ImageSequenceClip(gif_frames_list, fps=target_fps) as clip:
+                clip.duration = len(gif_frames_list) / target_fps
                 clip.write_gif(gif_path, fps=target_fps)
 
     return gif_path

@@ -1,3 +1,4 @@
+from http.client import HTTPException
 import importlib
 import json
 from math import asin, cos, radians, sin, sqrt
@@ -52,7 +53,7 @@ def inverse_geocode_from_google(latitude, longitude, key):
             for component_type, data_key in COMPONENT_MAPPING.items():
                 if component_type in component.get('types', []):
                     data[data_key] = component.get('long_name')
-    except (URLError, OSError, ValueError) as e:
+    except (HTTPException, URLError, OSError, ValueError) as e:
         print(f"ERROR. Failed to call Google Geocoding API: {e}")
 
     return data

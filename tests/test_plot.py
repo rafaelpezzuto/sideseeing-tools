@@ -157,20 +157,85 @@ class TestSideSeeingPlotter(unittest.TestCase):
         offline_res = geolocation.inverse_geocode(-23.56, -46.65)
         self.assertEqual(offline_res['country'], 'Brazil')
 
-    def test_extract_gif_creates_gif_without_direct_imageio_import(self):
-        instance = self.dataset.instances['instance-001']
-        gif_path = instance.video.replace('.mp4', '.gif')
+    def test_inverse_geocode_from_google_handles_truncated_http_response(self):
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        import threading
+        from urllib.request import urlopen as real_urlopen
+
+        class TruncatedHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', '1000')
+                self.end_headers()
+                self.wfile.write(b'{"results": []}')
+
+            def log_message(self, format, *args):
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), TruncatedHandler)
+        port = server.server_port
+        thread = threading.Thread(target=server.handle_request, daemon=True)
+        thread.start()
 
         try:
-            if os.path.exists(gif_path):
-                os.remove(gif_path)
+            with patch(
+                'sideseeing_tools.geolocation.urlopen',
+                side_effect=lambda url, *a, **kw: real_urlopen(f'http://127.0.0.1:{port}/', *a, **kw),
+            ):
+                result = geolocation.inverse_geocode_from_google(-23.56, -46.65, 'dummy-key')
+        finally:
+            server.server_close()
+            thread.join(timeout=2)
 
-            out = media.extract_gif(instance.video, gif_path, target_width=120, target_fps=2)
+        self.assertEqual(
+            result,
+            {'street': 'Unknown', 'city': 'Unknown', 'state': 'Unknown', 'country': 'Unknown'},
+        )
+
+    def test_extract_gif_creates_gif_without_direct_imageio_import(self):
+        import tempfile
+        import cv2
+        import numpy as np
+
+        colors_bgr = [
+            (0, 0, 255),
+            (0, 255, 0),
+            (255, 0, 0),
+            (0, 255, 255),
+            (255, 0, 255),
+            (255, 255, 0),
+            (255, 255, 255),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            video_path = os.path.join(tmp_dir, 'color_steps.mp4')
+            gif_path = os.path.join(tmp_dir, 'color_steps.gif')
+            fps = 30
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            writer = cv2.VideoWriter(video_path, fourcc, fps, (64, 48))
+
+            for sec in range(26):
+                color = colors_bgr[min(sec // 4, len(colors_bgr) - 1)]
+                frame = np.full((48, 64, 3), color, dtype=np.uint8)
+                for _ in range(fps):
+                    writer.write(frame)
+            writer.release()
+
+            out = media.extract_gif(video_path, gif_path, target_width=64, target_fps=3)
             self.assertEqual(out, gif_path)
             self.assertTrue(os.path.isfile(gif_path))
-        finally:
-            if os.path.exists(gif_path):
-                os.remove(gif_path)
 
+            cap = cv2.VideoCapture(gif_path)
+            decoded_frames = []
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                decoded_frames.append(frame)
+            cap.release()
 
+            self.assertEqual(len(decoded_frames), 7)
+            last_mean = decoded_frames[-1].mean(axis=(0, 1))
+            self.assertGreater(float(last_mean.min()), 200.0)
 
