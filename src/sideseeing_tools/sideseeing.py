@@ -146,6 +146,58 @@ class SideSeeingDS:
         for k in sorted(self.instances.keys()):
             yield self.instances[k]
 
+    def find_instances(self, query):
+        """Return instances whose name starts with or contains query (case-insensitive)."""
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError('Instance query must be a non-empty string')
+
+        needle = query.strip().lower()
+        prefix_matches = [
+            self.instances[key]
+            for key in sorted(self.instances.keys())
+            if key.lower().startswith(needle)
+        ]
+
+        if prefix_matches:
+            return prefix_matches
+
+        return [
+            self.instances[key]
+            for key in sorted(self.instances.keys())
+            if needle in key.lower()
+        ]
+
+    def get_instance(self, query):
+        """Return a single instance by exact name or unambiguous prefix/substring."""
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError('Instance query must be a non-empty string')
+
+        raw = query.strip()
+
+        if raw in self.instances:
+            return self.instances[raw]
+
+        needle = raw.lower()
+        exact_ci = [
+            self.instances[key]
+            for key in sorted(self.instances.keys())
+            if key.lower() == needle
+        ]
+
+        if len(exact_ci) == 1:
+            return exact_ci[0]
+
+        matches = self.find_instances(raw)
+
+        if not matches:
+            raise KeyError(f'No instance matching {query!r}')
+
+        if len(matches) > 1:
+            names = ', '.join(instance.name for instance in matches)
+            raise ValueError(f'Ambiguous instance query {query!r}; matches: {names}')
+
+        return matches[0]
+
     def metadata(self, save=False, google_api_key=None):
         if self.size == 0:
             print(f'ERROR. Dataset is empty.')
@@ -216,6 +268,37 @@ class SideSeeingInstance:
         self.name = name
         self.path = path
         self.files = {}
+
+    @classmethod
+    def from_directory(cls, directory, name=None, extract_media=False):
+        """Load and initialize a single recording instance directly from a directory."""
+        directory = os.fsdecode(os.fspath(directory))
+
+        if not os.path.isdir(directory):
+            raise exceptions.RootDirIsNotADirectoryError()
+
+        normalized_dir = os.path.abspath(directory)
+        instance_name = name if name else os.path.basename(normalized_dir)
+        instance = cls(instance_name, normalized_dir)
+
+        for entry in sorted(os.listdir(normalized_dir)):
+            full_path = os.path.join(normalized_dir, entry)
+
+            if not os.path.isfile(full_path):
+                continue
+
+            ssf = SideSeeingFile(normalized_dir, full_path)
+
+            if ssf.is_valid:
+                ssf.name = instance_name
+                instance.add_file(ssf)
+
+        if not instance.setup(extract_media):
+            raise exceptions.MetadataFileDoesNotExistError(
+                f'No valid metadata found in {normalized_dir}'
+            )
+
+        return instance
 
     def add_file(self, ssf):
         self.files[ssf.file_type] = ssf

@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import unittest
 import zipfile
@@ -127,3 +128,52 @@ class TestSideSeeingDS(unittest.TestCase):
 
             self.assertTrue(Path(instance.files['metadata'].file_path).is_file())
             self.assertEqual(Path(instance.files['metadata'].file_path).read_bytes(), source.read_bytes())
+
+    def test_get_instance_and_find_instances_by_prefix_and_substring(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = Path(self.root_dir) / 'instance-001' / 'metadata.json'
+
+            for name in (
+                'BATON_OLLRMC#ROUTE01-2024-07-23-18-06-08-406',
+                'BATON_OLLRMC#ROUTE02-2024-07-23-19-10-00-000',
+                'SANTOS_HM_Route_01_TO',
+            ):
+                folder = root / name
+                folder.mkdir()
+                shutil.copy2(source, folder / 'metadata.json')
+
+            ds = SideSeeingDS(root)
+
+            inst = ds.get_instance('BATON_OLLRMC#ROUTE01')
+            self.assertEqual(inst.name, 'BATON_OLLRMC#ROUTE01-2024-07-23-18-06-08-406')
+
+            inst_ci = ds.get_instance('santos_hm_route_01')
+            self.assertEqual(inst_ci.name, 'SANTOS_HM_Route_01_TO')
+
+            matches = ds.find_instances('baton_ollrmc')
+            self.assertEqual(
+                [m.name for m in matches],
+                [
+                    'BATON_OLLRMC#ROUTE01-2024-07-23-18-06-08-406',
+                    'BATON_OLLRMC#ROUTE02-2024-07-23-19-10-00-000',
+                ],
+            )
+
+            substring_matches = ds.find_instances('route02')
+            self.assertEqual(
+                [m.name for m in substring_matches],
+                ['BATON_OLLRMC#ROUTE02-2024-07-23-19-10-00-000'],
+            )
+
+            with self.assertRaisesRegex(ValueError, 'Ambiguous instance query'):
+                ds.get_instance('BATON_OLLRMC')
+
+            with self.assertRaises(KeyError):
+                ds.get_instance('NON_EXISTENT_ROUTE')
+
+            with self.assertRaises(ValueError):
+                ds.get_instance('   ')
+
+            with self.assertRaises(ValueError):
+                ds.find_instances('')
