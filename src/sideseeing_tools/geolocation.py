@@ -1,7 +1,9 @@
+import importlib
+import json
 from math import asin, cos, radians, sin, sqrt
-
-import requests
-import reverse_geocode
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 COMPONENT_MAPPING = {
     'route': 'street',
@@ -16,6 +18,7 @@ def inverse_geocode(latitude, longitude, key=None):
     data = {'country': 'Unknown', 'state': 'Unknown', 'city': 'Unknown', 'street': 'Unknown'}
 
     if not key:
+        reverse_geocode = importlib.import_module('reverse_geocode')
         geo = reverse_geocode.search([[latitude, longitude]])
 
         if geo:
@@ -34,10 +37,13 @@ def inverse_geocode_from_google(latitude, longitude, key):
     data = {v: 'Unknown' for v in COMPONENT_MAPPING.values()}
 
     try:
-        params = {'latlng': f'{float(latitude)},{float(longitude)}', 'key': key}
-        response = requests.get('https://maps.googleapis.com/maps/api/geocode/json', params=params)
-        response.raise_for_status()
-        results = response.json().get("results", [])
+        query = urlencode({'latlng': f'{float(latitude)},{float(longitude)}', 'key': key})
+        url = f'https://maps.googleapis.com/maps/api/geocode/json?{query}'
+
+        with urlopen(url) as response:
+            payload = json.load(response)
+
+        results = payload.get("results", [])
 
         if not results:
             return data
@@ -46,7 +52,7 @@ def inverse_geocode_from_google(latitude, longitude, key):
             for component_type, data_key in COMPONENT_MAPPING.items():
                 if component_type in component.get('types', []):
                     data[data_key] = component.get('long_name')
-    except requests.exceptions.RequestException as e:
+    except (URLError, OSError, ValueError) as e:
         print(f"ERROR. Failed to call Google Geocoding API: {e}")
 
     return data
