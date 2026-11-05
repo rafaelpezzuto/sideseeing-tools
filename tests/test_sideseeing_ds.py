@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -192,6 +193,26 @@ class TestSideSeeingDS(unittest.TestCase):
 
         ds.clear_cache()
         self.assertEqual(instance._lazy_cache, {})
+        self.assertIsNone(ds._sensors)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            sample_dir = Path(temporary) / 'instance-001'
+            shutil.copytree(Path(self.root_dir) / 'instance-001', sample_dir)
+            mutable_ds = SideSeeingDS(root_dir=temporary, name="MutableDataset")
+            mutable_inst = mutable_ds.instances['instance-001']
+            original_sensor = next(iter(mutable_inst.sensors3.keys()))
+            self.assertIn(original_sensor, mutable_ds.sensors['sensors3'])
+
+            csv_path = Path(mutable_inst.files['sensors3'].file_path)
+            csv_text = csv_path.read_text()
+            csv_path.write_text(
+                re.sub(re.escape(original_sensor), 'renamed_sensor', csv_text, flags=re.IGNORECASE)
+            )
+
+            mutable_ds.clear_cache()
+            self.assertIn('renamed_sensor', mutable_inst.sensors3)
+            self.assertIn('renamed_sensor', mutable_ds.sensors['sensors3'])
+            self.assertNotIn(original_sensor, mutable_ds.sensors['sensors3'])
 
         preloaded = SideSeeingDS(root_dir=self.root_dir, name="PreloadedDataset", preload=True)
         preloaded_instance = preloaded.instances['instance-001']

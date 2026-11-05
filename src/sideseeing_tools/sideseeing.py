@@ -178,6 +178,8 @@ class SideSeeingDS:
         for instance in self.iterator:
             instance.clear_cache()
 
+        self._sensors = None
+
     @property
     def instance(self):
         return self.instances[random.choice(list(self.instances.keys()))]
