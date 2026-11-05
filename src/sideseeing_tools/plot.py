@@ -1,6 +1,6 @@
+import importlib
+
 import cv2
-import folium
-import librosa
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import animation
@@ -24,25 +24,24 @@ class SideSeeingPlotter:
         self.google_api_key = google_api_key
 
     def plot_instance_audio(self, instance):
-        """Plots the waveform and the Mel spectrogram for the specified audio file."""
+        """Plots the waveform and spectrogram for the specified audio file."""
         if getattr(instance, 'audio', None) is None:
             print(f'Extracting audio data')
             instance.audio = media.extract_audio(
                 instance.video, instance.video.replace('.mp4', '.wav')
             )
 
-        y, sr = librosa.load(instance.audio)
-        mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
-        mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+        y, sr = media.load_audio_signal(instance.audio)
+        times = np.arange(len(y), dtype=np.float64) / sr
 
         fig, ax = plt.subplots(nrows=2, sharex=True)
-        librosa.display.waveshow(y, sr=sr, ax=ax[0], color="blue")
-        ax[0].set(title='Waveform')
+        ax[0].plot(times, y, color='blue', linewidth=0.5)
+        ax[0].set(title='Waveform', ylabel='Amplitude')
         ax[0].label_outer()
 
-        img1 = librosa.display.specshow(mel_db, y_axis='mel', x_axis='time', ax=ax[1])
-        ax[1].set(title='Mel spectrogram')
-        fig.colorbar(img1, ax=ax[1], format="%+2.f dB", location='bottom')
+        _, _, _, img1 = ax[1].specgram(y, Fs=sr, cmap='magma')
+        ax[1].set(title='Spectrogram', xlabel='Time (s)', ylabel='Frequency (Hz)')
+        fig.colorbar(img1, ax=ax[1], format='%+2.f dB', location='bottom')
         plt.tight_layout()
         plt.show()
 
@@ -51,6 +50,7 @@ class SideSeeingPlotter:
         center = instance.geolocation_center
 
         if len(points) > 0:
+            folium = importlib.import_module('folium')
             map = folium.Map(location=center, tiles=tiles, zoom_start=zoom_start)
             counter = 1
 
@@ -193,23 +193,20 @@ class SideSeeingPlotter:
                         instance.video, instance.video.replace('.mp4', '.wav')
                     )
 
-                y, sr = librosa.load(instance.audio)
-                mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
-                mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+                y, sr = media.load_audio_signal(instance.audio)
+                times = np.arange(len(y), dtype=np.float64) / sr
 
-                librosa.display.waveshow(y, sr=sr, ax=axis[ind + 1, 0], color="blue")
+                axis[ind + 1, 0].plot(times, y, color='blue', linewidth=0.5)
                 axis[ind + 1, 0].set_xlim((x_ti, x_tf))
                 axis[ind + 1, 0].set_ylabel('Waveform')
                 axis[ind + 1, 0].set_xlabel('Time (s)')
 
-                img = librosa.display.specshow(
-                    mel_db, y_axis='mel', x_axis='time', ax=axis[ind + 2, 0]
-                )
+                _, _, _, img = axis[ind + 2, 0].specgram(y, Fs=sr, cmap='magma')
                 axis[ind + 2, 0].set_xlim((x_ti, x_tf))
-                axis[ind + 2, 0].set_ylabel('Mel spectrogram (Hz)')
+                axis[ind + 2, 0].set_ylabel('Spectrogram (Hz)')
                 axis[ind + 2, 0].set_xlabel('Time (s)')
 
-                fig.colorbar(img, ax=axis[ind + 2, 1], format="%+2.f dB", location='left')
+                fig.colorbar(img, ax=axis[ind + 2, 1], format='%+2.f dB', location='left')
 
                 axis[ind + 1, 1].axis('off')
                 axis[ind + 2, 1].axis('off')
@@ -306,6 +303,7 @@ class SideSeeingPlotter:
         return df.style.map(func=lambda x: 'color: red' if x < 1 else 'color: black')
 
     def plot_dataset_map(self, tiles='OpenStreetMap', zoom_start=4):
+        folium = importlib.import_module('folium')
         points = np.vstack(
             [
                 i.geolocation_points[['latitude', 'longitude']].values.tolist()

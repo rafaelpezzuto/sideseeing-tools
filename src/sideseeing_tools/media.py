@@ -1,10 +1,24 @@
 import os
+from math import inf, nextafter
 
 import cv2
-import imageio
-from moviepy import AudioFileClip, VideoFileClip
+import numpy as np
+from moviepy import AudioFileClip, ImageSequenceClip, VideoFileClip
 
 from sideseeing_tools.snippets import resolve_snippet_time_bounds
+
+
+def load_audio_signal(source_path, sample_rate=22050):
+    """Load mono audio samples as a 1D float32 numpy array and sample rate."""
+    clip_kwargs = {'fps': sample_rate} if sample_rate else {}
+    with AudioFileClip(str(source_path), **clip_kwargs) as clip:
+        fps = sample_rate or int(clip.fps)
+        samples = clip.to_soundarray(fps=fps)
+
+    if samples.ndim > 1:
+        samples = samples.mean(axis=1)
+
+    return np.asarray(samples, dtype=np.float32), fps
 
 
 def extract_audio(
@@ -68,9 +82,14 @@ def extract_gif(source_path, target_path, target_width=300, target_fps=5):
             else:
                 break
 
-        imageio.mimsave(gif_path, gif_frames_list, fps=target_fps, subrectangles=True)
-
         cap.release()
+
+        if gif_frames_list:
+            # MoviePy truncates duration * fps to count frames. Round the duration
+            # upward by one float step so e.g. (15 / 11) * 11 cannot lose a frame.
+            duration = nextafter(len(gif_frames_list) / target_fps, inf)
+            with ImageSequenceClip(gif_frames_list, fps=target_fps).with_duration(duration) as clip:
+                clip.write_gif(gif_path, fps=target_fps)
 
     return gif_path
 

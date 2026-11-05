@@ -1,6 +1,9 @@
 import os
 import tempfile
 import unittest
+import wave
+
+import numpy as np
 
 from sideseeing_tools.media import (
     extract_frames_at_times,
@@ -8,6 +11,7 @@ from sideseeing_tools.media import (
     extract_frames,
     extract_frames_timespan,
     extract_frames_positionspan,
+    load_audio_signal,
 )
 
 
@@ -343,3 +347,43 @@ class TestExtractFramesPositionspan(unittest.TestCase):
             frame_name = f'{prefix}{str(frame).zfill(5)}.jpg'
             frame_path = os.path.join(self.tmp_path, frame_name)
             self.assertTrue(os.path.exists(frame_path))
+
+
+class TestLoadAudioSignal(unittest.TestCase):
+
+    def test_load_audio_signal_filters_frequencies_above_nyquist_when_downsampling(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            wav_path = os.path.join(tmp_dir, 'test_tones.wav')
+            source_rate = 44100
+            duration_s = 5
+            t = np.arange(source_rate * duration_s, dtype=np.float64) / source_rate
+            signal = 8000.0 * np.sin(2.0 * np.pi * 1000.0 * t) + 16000.0 * np.sin(
+                2.0 * np.pi * 15000.0 * t
+            )
+            pcm = np.clip(signal, -32768, 32767).astype('<i2')
+
+            with wave.open(wav_path, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(source_rate)
+                wf.writeframes(pcm.tobytes())
+
+            samples, sr = load_audio_signal(wav_path, sample_rate=22050)
+            self.assertEqual(sr, 22050)
+
+            core = samples[1000:-1000].astype(np.float64)
+            idx = np.arange(len(core), dtype=np.float64) / sr
+
+            def tone_amplitude(freq_hz):
+                sin_proj = np.mean(core * np.sin(2.0 * np.pi * freq_hz * idx))
+                cos_proj = np.mean(core * np.cos(2.0 * np.pi * freq_hz * idx))
+                return 2.0 * float(np.hypot(sin_proj, cos_proj))
+
+            in_band_amplitude = tone_amplitude(1000.0)
+            alias_amplitude = tone_amplitude(7050.0)
+
+            self.assertGreater(in_band_amplitude, 0.15)
+            self.assertLess(alias_amplitude, 1e-4)
+
+
+
