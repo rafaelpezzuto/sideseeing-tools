@@ -42,4 +42,7 @@ def test_report_only_writes_source_metadata_when_requested(tmp_path, generate_me
         assert 'video_fps' in pd.read_csv(metadata_path)
     assert after == before
     assert (output / 'index.html').exists()
+    assert (output / 'static' / 'css' / 'custom.css').exists()
     assert (output / 'static' / 'js' / 'custom.js').exists()
+    assert not (output / 'static' / 'plugins').exists()
+    assert not (output / 'static' / 'js' / 'sidewalk_assessment.js').exists()
