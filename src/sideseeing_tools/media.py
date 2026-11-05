@@ -9,7 +9,8 @@ from sideseeing_tools.snippets import resolve_snippet_time_bounds
 
 def load_audio_signal(source_path, sample_rate=22050):
     """Load mono audio samples as a 1D float32 numpy array and sample rate."""
-    with AudioFileClip(str(source_path)) as clip:
+    clip_kwargs = {'fps': sample_rate} if sample_rate else {}
+    with AudioFileClip(str(source_path), **clip_kwargs) as clip:
         fps = sample_rate or int(clip.fps)
         samples = clip.to_soundarray(fps=fps)
 
