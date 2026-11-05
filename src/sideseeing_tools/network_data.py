@@ -12,21 +12,89 @@ CELL_NUMERIC_FIELDS = (
     'cid',
     'psc',
     'uarfcn',
+    'arfcn',
+    'ci',
+    'pci',
+    'tac',
+    'earfcn',
+    'nci',
+    'nrarfcn',
+    'bandwidth',
     'mcc',
     'mnc',
     'ss',
     'ber',
     'rscp',
     'ecno',
+    'rssi',
+    'rsrp',
+    'rsrq',
+    'rssnr',
+    'cqi',
+    'ta',
+    'csi_rsrp',
+    'csi_rsrq',
+    'csi_sinr',
+    'ss_rsrp',
+    'ss_rsrq',
+    'ss_sinr',
     'level',
 )
+
+WCDMA_PATTERNS = {
+    'registered': r'mRegistered=(\w+)',
+    'timestamp': r'mTimeStamp=(\d+)[ns|]',
+    'connection_status': r'mCellConnectionStatus=(\d+)',
+    'lac': r'mLac=(\d+)',
+    'cid': r'mCid=(\d+)',
+    'psc': r'mPsc=(\d+)',
+    'uarfcn': r'mUarfcn=(\d+)',
+    'mcc': r'mMcc=(\d+)',
+    'mnc': r'mMnc=(\d+)',
+    'alpha_long': r'mAlphaLong=(.*?)(?=\s\w+=|\s*})',
+    'alpha_short': r'mAlphaShort=(.*?)(?=\s\w+=|\s*})',
+    'ss': r'ss=(-?\d+)',
+    'ber': r'ber=(\d+)',
+    'rscp': r'rscp=(-?\d+)',
+    'ecno': r'ecno=(-?\d+)',
+    'level': r'level=(\d+)',
+}
+
+CELL_PATTERNS = {
+    **WCDMA_PATTERNS,
+    'arfcn': r'mArfcn=(\d+)',
+    'bsic': r'mBsic=(0x[0-9a-fA-F]+|\d+)',
+    'ci': r'mCi=(\d+)',
+    'pci': r'mPci=(\d+)',
+    'tac': r'mTac=(\d+)',
+    'earfcn': r'mEarfcn=(\d+)',
+    'nci': r'mNci=(\d+)',
+    'nrarfcn': r'mNrArfcn=(\d+)',
+    'bands': r'mBands=\[([^\]]*)\]',
+    'bandwidth': r'mBandwidth=(-?\d+)',
+    'rssi': r'\brssi\s*=\s*(-?\d+)',
+    'rsrp': r'\brsrp\s*=\s*(-?\d+)',
+    'rsrq': r'\brsrq\s*=\s*(-?\d+)',
+    'rssnr': r'\brssnr\s*=\s*(-?\d+)',
+    'cqi': r'\bcqi\s*=\s*(-?\d+)',
+    'ta': r'\b(?:ta|mTa)\s*=\s*(-?\d+)',
+    'csi_rsrp': r'\bcsiRsrp\s*=\s*(-?\d+)',
+    'csi_rsrq': r'\bcsiRsrq\s*=\s*(-?\d+)',
+    'csi_sinr': r'\bcsiSinr\s*=\s*(-?\d+)',
+    'ss_rsrp': r'\bssRsrp\s*=\s*(-?\d+)',
+    'ss_rsrq': r'\bssRsrq\s*=\s*(-?\d+)',
+    'ss_sinr': r'\bssSinr\s*=\s*(-?\d+)',
+    'level': r'\blevel\s*=\s*(-?\d+)',
+}
 
 
 def _load_normalized_network(path, columns, datetime_format, start_time, end_time, data_type):
     with open(path) as stream:
         reader = csv.DictReader(stream)
 
-        if reader.fieldnames != columns:
+        if not reader.fieldnames or 'Datetime UTC' not in reader.fieldnames:
+            return None
+        if not set(reader.fieldnames).issubset(set(columns)):
             return None
 
         rows = []
@@ -42,11 +110,14 @@ def _load_normalized_network(path, columns, datetime_format, start_time, end_tim
             row['Datetime UTC'] = timestamp
 
             if data_type == 'cell':
+                for col in columns:
+                    row.setdefault(col, '')
+
                 for field in CELL_NUMERIC_FIELDS:
-                    if row[field] != '':
+                    if row.get(field, '') != '':
                         row[field] = int(row[field])
 
-                if row['registered'] != '':
+                if row.get('registered', '') != '':
                     row['registered'] = row['registered'].lower() == 'true'
             else:
                 row = {key: None if value == '' else value for key, value in row.items()}
@@ -56,27 +127,8 @@ def _load_normalized_network(path, columns, datetime_format, start_time, end_tim
     return to_dataframe(rows, 1, datetime_format, data_type=data_type)
 
 
-def parse_wcdma(cell_info_str):
+def _extract_fields(cell_info_str, patterns):
     result = {}
-
-    patterns = {
-        'registered': r'mRegistered=(\w+)',
-        'timestamp': r'mTimeStamp=(\d+)[ns|]',
-        'connection_status': r'mCellConnectionStatus=(\d+)',
-        'lac': r'mLac=(\d+)',
-        'cid': r'mCid=(\d+)',
-        'psc': r'mPsc=(\d+)',
-        'uarfcn': r'mUarfcn=(\d+)',
-        'mcc': r'mMcc=(\d+)',
-        'mnc': r'mMnc=(\d+)',
-        'alpha_long': r'mAlphaLong=(.*?)(?=\s\w+=|\s*})',
-        'alpha_short': r'mAlphaShort=(.*?)(?=\s\w+=|\s*})',
-        'ss': r'ss=(-?\d+)',
-        'ber': r'ber=(\d+)',
-        'rscp': r'rscp=(-?\d+)',
-        'ecno': r'ecno=(-?\d+)',
-        'level': r'level=(\d+)',
-    }
 
     for key, pattern in patterns.items():
         match = re.search(pattern, cell_info_str)
@@ -85,7 +137,7 @@ def parse_wcdma(cell_info_str):
             value = match.group(1).strip()
 
             if key == 'registered':
-                result[key] = value.lower() == 'yes'
+                result[key] = value.lower() in ('yes', 'true')
             elif key in CELL_NUMERIC_FIELDS:
                 try:
                     result[key] = int(value)
@@ -93,6 +145,22 @@ def parse_wcdma(cell_info_str):
                     result[key] = value
             else:
                 result[key] = value
+
+    return result
+
+
+def parse_wcdma(cell_info_str):
+    return _extract_fields(cell_info_str, WCDMA_PATTERNS)
+
+
+def parse_cell_info(cell_info_str):
+    """Parse Android CellInfo records across WCDMA (3G), LTE (4G), NR (5G), and GSM (2G)."""
+    result = _extract_fields(cell_info_str, CELL_PATTERNS)
+
+    tech_match = re.search(r'\bCellInfo([A-Za-z0-9]+)\b', cell_info_str)
+
+    if tech_match:
+        result['cell_type'] = tech_match.group(1).upper()
 
     return result
 
@@ -112,7 +180,7 @@ def process_cell_networks(path, datetime_format, start_time=None, end_time=None)
 
         for line in fin:
             try:
-                datetime_str, wcdma_str = line.strip().split(',', 1)
+                datetime_str, cell_str = line.strip().split(',', 1)
             except ValueError as e:
                 print(f"ERROR. Error splitting line: {line}: {e}")
                 continue
@@ -133,22 +201,22 @@ def process_cell_networks(path, datetime_format, start_time=None, end_time=None)
                 continue
 
             try:
-                wcdma_data = parse_wcdma(wcdma_str)
+                cell_data = parse_cell_info(cell_str)
             except Exception as e:
-                print(f"ERROR. Error parsing WCDMA data: {wcdma_str}: {e}")
+                print(f"ERROR. Error parsing cell data: {cell_str}: {e}")
                 continue
 
             row = {
                 'Datetime UTC': ts,
             }
 
-            if not isinstance(wcdma_data, dict):
-                print(f"ERROR. Parsed line is not a dictionary: {wcdma_data}")
+            if not isinstance(cell_data, dict):
+                print(f"ERROR. Parsed line is not a dictionary: {cell_data}")
                 continue
 
             for key in CELL_SNIPPET_HEADER:
                 if key != 'Datetime UTC':
-                    row[key] = wcdma_data.get(key, '')
+                    row[key] = cell_data.get(key, '')
 
             data.append(row)
 
