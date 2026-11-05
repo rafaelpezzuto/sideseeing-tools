@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 
@@ -6,14 +7,69 @@ from pathlib import Path
 
 import pandas as pd
 
+from sideseeing_tools import constants, exceptions, media, snippet_export
 from sideseeing_tools.constants import GPS_SNIPPET_FILE_NAME, ONE_AXIS_SNIPPET_FILE_NAME
-from sideseeing_tools.sideseeing import SideSeeingDS
+from sideseeing_tools.sideseeing import SideSeeingDS, SideSeeingInstance
+
+FIXTURE_DATASET = Path(__file__).parent.parent / 'fixtures' / 'dataset'
 
 
 class TestSideSeeingInstance(unittest.TestCase):
     def setUp(self):
-        self.dataset = SideSeeingDS('fixtures/dataset', name="Test Dataset")
+        self.dataset = SideSeeingDS(FIXTURE_DATASET, name="Test Dataset")
         self.instance = self.dataset.instances['instance-001']
+
+    def test_from_directory_initializes_single_instance(self):
+        instance_dir = FIXTURE_DATASET / 'instance-001'
+        loaded = SideSeeingInstance.from_directory(instance_dir)
+
+        self.assertEqual(loaded.name, 'instance-001')
+        self.assertIsNotNone(loaded.video)
+        self.assertIsNone(loaded.audio)
+        self.assertEqual(loaded.media_start_time, self.instance.media_start_time)
+        self.assertEqual(loaded.media_stop_time, self.instance.media_stop_time)
+        self.assertEqual(set(loaded.sensors3.keys()), set(self.instance.sensors3.keys()))
+        pd.testing.assert_frame_equal(loaded.geolocation_points, self.instance.geolocation_points)
+
+        named = SideSeeingInstance.from_directory(str(instance_dir), name='custom-sample')
+        self.assertEqual(named.name, 'custom-sample')
+
+    def test_from_directory_initializes_audio_only_instance(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_dir = Path(temp_dir) / 'audio-sample'
+            audio_dir.mkdir()
+
+            origin = pd.Timestamp(self.instance.media_start_time, tz='UTC')
+            stop = origin + pd.Timedelta(seconds=3)
+            media.extract_audio_snippet(self.instance.video, 0, 3, audio_dir / 'audio.m4a')
+            metadata_payload = {
+                'time': {
+                    'mediaStartDateTime': origin.strftime(constants.DATETIME_UTC_FORMAT),
+                    'mediaStopDateTime': stop.strftime(constants.DATETIME_UTC_FORMAT),
+                }
+            }
+            (audio_dir / 'metadata.json').write_text(json.dumps(metadata_payload))
+            snippet_export.write_frame_snippets(self.instance, 0, 3, audio_dir, False, origin)
+            snippet_export.write_sensors_snippet(self.instance, 0, 3, audio_dir, False, origin)
+
+            loaded = SideSeeingInstance.from_directory(audio_dir)
+            from_ds = SideSeeingDS(audio_dir).get_instance('audio-sample')
+
+            self.assertEqual(loaded.name, 'audio-sample')
+            self.assertIsNone(loaded.video)
+            self.assertEqual(loaded.audio, str(audio_dir / 'audio.m4a'))
+            self.assertAlmostEqual(loaded.media_total_time, 3.0, delta=0.05)
+            self.assertAlmostEqual(loaded.media_total_time, from_ds.media_total_time, places=5)
+            self.assertEqual(set(loaded.sensors3.keys()), set(from_ds.sensors3.keys()))
+            pd.testing.assert_frame_equal(loaded.geolocation_points, from_ds.geolocation_points)
+
+    def test_from_directory_rejects_invalid_or_empty_directories(self):
+        with self.assertRaises(exceptions.RootDirIsNotADirectoryError):
+            SideSeeingInstance.from_directory(FIXTURE_DATASET / 'non-existent')
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaises(exceptions.MetadataFileDoesNotExistError):
+                SideSeeingInstance.from_directory(temp_dir)
 
     def test_extract_snippet_with_include_time_span_on_filename(self):
         with tempfile.TemporaryDirectory() as temp_dir:
