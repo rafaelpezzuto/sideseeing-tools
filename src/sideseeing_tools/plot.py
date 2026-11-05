@@ -46,12 +46,12 @@ class SideSeeingPlotter:
         plt.tight_layout()
         plt.show()
 
-    def plot_instance_map(self, instance, titles='OpenStreetMap', zoom_start=14):
+    def plot_instance_map(self, instance, tiles='OpenStreetMap', zoom_start=14):
         points = instance.geolocation_points[['latitude', 'longitude']].values.tolist()
         center = instance.geolocation_center
 
         if len(points) > 0:
-            map = folium.Map(location=center, titles=titles, zoom_start=zoom_start)
+            map = folium.Map(location=center, tiles=tiles, zoom_start=zoom_start)
             counter = 1
 
             for lat, lon in points:
@@ -118,7 +118,7 @@ class SideSeeingPlotter:
             cols = 5
             figsize = (15, 2 * rows)
 
-        fig, axes = plt.subplots(rows, cols, figsize=figsize)
+        fig, axes = plt.subplots(rows, cols, figsize=figsize, squeeze=False)
 
         rc = 0
         cc = 0
@@ -132,10 +132,7 @@ class SideSeeingPlotter:
 
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            if rows > 1:
-                ax = axes[rc][cc]
-            else:
-                ax = axes[cc]
+            ax = axes[rc][cc]
 
             ax.imshow(frame_rgb)
 
@@ -260,8 +257,9 @@ class SideSeeingPlotter:
             return
 
         if primary_category is None or secondary_category is None:
+            categories = sorted({item['category'] for item in self.categories_and_tags})
             print(f'ERROR. You must pass a category name.')
-            print(f'Here are the possibilities: {self.categories_and_tags.keys()}.')
+            print(f'Here are the possibilities: {categories}.')
 
             return
 
@@ -307,7 +305,7 @@ class SideSeeingPlotter:
 
         return df.style.map(func=lambda x: 'color: red' if x < 1 else 'color: black')
 
-    def plot_dataset_map(self, titles='OpenStreetMap', zoom_start=4):
+    def plot_dataset_map(self, tiles='OpenStreetMap', zoom_start=4):
         points = np.vstack(
             [
                 i.geolocation_points[['latitude', 'longitude']].values.tolist()
@@ -316,7 +314,7 @@ class SideSeeingPlotter:
         )
         center = points.mean(axis=0)
 
-        ds_map = folium.Map(location=center, titles=titles, zoom_start=zoom_start)
+        ds_map = folium.Map(location=center, tiles=tiles, zoom_start=zoom_start)
 
         for lat, lon in points:
             folium.Marker([lat, lon]).add_to(ds_map)
@@ -477,25 +475,26 @@ class SideSeeingPlotter:
         fig, axis = plt.subplots(
             len(data), 1, figsize=(15, int(len(data) * 4)), sharex=sharex, sharey=sharey
         )
+        axes = np.atleast_1d(axis)
 
         for ind_plot, item in enumerate(data):
             instance_name = item['instance_name']
             sensor_data = item['sensor_data']
 
             for ind, column in enumerate(axis_columns):
-                axis[ind_plot].plot(
+                axes[ind_plot].plot(
                     sensor_data[time_column],
                     sensor_data[column],
                     label=axis_columns[ind],
                     linewidth=linewidth,
                 )
-                axis[ind_plot].set_title(instance_name)
-                axis[ind_plot].legend()
+                axes[ind_plot].set_title(instance_name)
+                axes[ind_plot].legend()
 
             if xlim:
-                axis[ind_plot].set_xlim(xlim)
+                axes[ind_plot].set_xlim(xlim)
             if ylim:
-                axis[ind_plot].set_ylim(ylim)
+                axes[ind_plot].set_ylim(ylim)
 
         plt.tight_layout()
 
