@@ -50,8 +50,9 @@ def test_parse_cell_info_supports_lte_nr_gsm_and_wcdma():
 
     nr = (
         'CellInfoNr:{mRegistered=YES mTimeStamp=884423298838939ns mCellConnectionStatus=1 '
-        'CellIdentityNr:{ mPci=101 mTac=12345 mNrArfcn=632628 mBands=[78] mMcc=724 mMnc=05 '
-        'mNci=9876543210 mAlphaLong=Claro 5G mAlphaShort=Claro mAdditionalPlmns={}} '
+        'CellIdentityNr:{ mPci = 101 mTac = 12345 mNrArfcn = 632628 mBands = [78] '
+        'mMcc = 724 mMnc = 05 mNci = 9876543210 mAlphaLong = Claro 5G mAlphaShort = Claro '
+        'mAdditionalPlmns = {} } '
         'CellSignalStrengthNr:{ csiRsrp = -90 csiRsrq = -11 csiSinr = 14 '
         'ssRsrp = -88 ssRsrq = -10 ssSinr = 16 level = 4 }}'
     )
@@ -63,6 +64,10 @@ def test_parse_cell_info_supports_lte_nr_gsm_and_wcdma():
     assert parsed_nr['nrarfcn'] == 632628
     assert parsed_nr['nci'] == 9876543210
     assert parsed_nr['bands'] == '78'
+    assert parsed_nr['mcc'] == 724
+    assert parsed_nr['mnc'] == 5
+    assert parsed_nr['alpha_long'] == 'Claro 5G'
+    assert parsed_nr['alpha_short'] == 'Claro'
     assert parsed_nr['csi_rsrp'] == -90
     assert parsed_nr['ss_rsrp'] == -88
     assert parsed_nr['ss_rsrq'] == -10
