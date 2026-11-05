@@ -24,6 +24,18 @@ from sideseeing_tools import (
 )
 
 SNIPPET_SUFFIX_PATTERN = r'\.-?\d+(?:\.\d+)?_-?\d+(?:\.\d+)?(?=\.(?:csv|json|mp4|wav|m4a)$)'
+LAZY_ATTRIBUTES = (
+    'media_total_time',
+    'consumption',
+    'geolocation_points',
+    'geolocation_center',
+    'sensors1',
+    'sensors3',
+    'sensors6',
+    'wifi_networks',
+    'cell_networks',
+    'label',
+)
 
 
 class SideSeeingDS:
@@ -35,6 +47,7 @@ class SideSeeingDS:
         generate_metadata=False,
         extract_media=False,
         google_api_key=None,
+        preload=False,
     ):
         print('INFO. Loading data.')
         self.name = name
@@ -42,6 +55,7 @@ class SideSeeingDS:
         root_dir = os.fsdecode(os.fspath(root_dir))
         subdir_data = os.fsdecode(os.fspath(subdir_data))
         self._temporary_data = None
+        self._sensors = None
 
         if os.path.isfile(root_dir) and root_dir.lower().endswith('.zip'):
             self.root_dir = root_dir
@@ -60,7 +74,7 @@ class SideSeeingDS:
         else:
             raise exceptions.RootDirIsNotADirectoryError()
 
-        self.setup(extract_media)
+        self.setup(extract_media, preload=preload)
 
         if generate_metadata:
             self.metadata(generate_metadata, google_api_key)
@@ -84,8 +98,9 @@ class SideSeeingDS:
 
         self._data_dirs.append(temporary_dir)
 
-    def setup(self, extract_media):
+    def setup(self, extract_media, preload=False):
         self.instances = {}
+        self._sensors = None
         invalid_instances = []
 
         for data_dir in self._data_dirs:
@@ -105,7 +120,7 @@ class SideSeeingDS:
                         self.instances[ssf.name].add_file(ssf)
 
         for key in self.instances.keys():
-            is_valid_instance = self.instances[key].setup(extract_media)
+            is_valid_instance = self.instances[key].setup(extract_media, preload=preload)
 
             if not is_valid_instance:
                 invalid_instances.append(key)
@@ -113,25 +128,55 @@ class SideSeeingDS:
         for key in invalid_instances:
             self.instances.pop(key)
 
-        self.populate_sensors()
+        if preload:
+            self.populate_sensors()
+
+    @property
+    def sensors(self):
+        if self._sensors is None:
+            self.populate_sensors()
+
+        return self._sensors
+
+    @sensors.setter
+    def sensors(self, value):
+        self._sensors = value
 
     def populate_sensors(self):
-        self.sensors = {
+        sensors = {
             'sensors1': {},
             'sensors3': {},
             'sensors6': {},
         }
 
         for instance in self.iterator:
-            for n_axis in self.sensors.keys():
+            for n_axis in sensors.keys():
                 sensor_dict = getattr(instance, n_axis, None)
 
                 if sensor_dict is not None:
                     for name in sensor_dict.keys():
-                        if name not in self.sensors[n_axis]:
-                            self.sensors[n_axis][name] = set()
+                        if name not in sensors[n_axis]:
+                            sensors[n_axis][name] = set()
 
-                        self.sensors[n_axis][name].add(instance.name)
+                        sensors[n_axis][name].add(instance.name)
+
+        self._sensors = sensors
+
+        return self._sensors
+
+    def preload(self):
+        """Eagerly load all instances and populate the dataset sensor index."""
+        for instance in self.iterator:
+            instance.preload()
+
+        self.populate_sensors()
+
+        return self
+
+    def clear_cache(self):
+        """Clear cached DataFrames across all instances in the dataset."""
+        for instance in self.iterator:
+            instance.clear_cache()
 
     @property
     def instance(self):
@@ -268,9 +313,15 @@ class SideSeeingInstance:
         self.name = name
         self.path = path
         self.files = {}
+        self.media_start_time = None
+        self.media_stop_time = None
+        self.video = None
+        self.audio = None
+        self.gif = None
+        self._lazy_cache = {}
 
     @classmethod
-    def from_directory(cls, directory, name=None, extract_media=False):
+    def from_directory(cls, directory, name=None, extract_media=False, preload=False):
         """Load and initialize a single recording instance directly from a directory."""
         directory = os.fsdecode(os.fspath(directory))
 
@@ -293,7 +344,7 @@ class SideSeeingInstance:
                 ssf.name = instance_name
                 instance.add_file(ssf)
 
-        if not instance.setup(extract_media):
+        if not instance.setup(extract_media, preload=preload):
             raise exceptions.MetadataFileDoesNotExistError(
                 f'No valid metadata found in {normalized_dir}'
             )
@@ -322,7 +373,7 @@ class SideSeeingInstance:
             sep='\n',
         )
 
-    def setup(self, extract_media=False):
+    def setup(self, extract_media=False, preload=False):
         try:
             with open(self.files['metadata'].file_path) as json_file:
                 self.metadata = json.load(json_file)
@@ -341,63 +392,152 @@ class SideSeeingInstance:
         self.media_stop_time = datetime.datetime.strptime(
             media_stop_time, constants.DATETIME_UTC_FORMAT
         )
-        self.media_total_time = (self.media_stop_time - self.media_start_time).total_seconds()
 
-        attributes = [
-            'consumption',
-            'geolocation_points',
-            'geolocation_center',
-            'sensors3',
-            'sensors6',
-            'sensors1',
-            'cell_networks',
-            'wifi_networks',
-            'label',
-            'video',
-            'audio',
-            'gif',
-        ]
-
-        for attr in attributes:
-            setattr(self, attr, None)
+        self._lazy_cache = {}
+        self.video = None
+        self.audio = None
+        self.gif = None
 
         for file_type in ('video', 'audio', 'gif'):
             if file_type in self.files:
                 setattr(self, file_type, self.files[file_type].file_path)
 
-        if self.video is not None or self.audio is not None:
-            _, self.media_total_time = metadata.recording_reference(self)
+        if 'video' in self.files and extract_media:
+            video_path = self.files['video'].file_path
+            self.audio = media.extract_audio(video_path, video_path.replace('.mp4', '.wav'))
+            self.gif = media.extract_gif(video_path, video_path.replace('.mp4', '.gif'))
 
-        for k, v in self.files.items():
-            if k == 'consumption':
-                self.consumption = sensor_data.preprocess_consumption(
+        if preload:
+            self.preload()
+
+        return True
+
+    def preload(self):
+        """Eagerly load and cache all tabular sensor, GPS, network, and label data."""
+        for attr in LAZY_ATTRIBUTES:
+            getattr(self, attr)
+
+        return self
+
+    def clear_cache(self):
+        """Clear cached DataFrames so subsequent accesses reload from disk on demand."""
+        self._lazy_cache.clear()
+
+    @property
+    def media_total_time(self):
+        if 'media_total_time' not in self._lazy_cache:
+            if self.video is not None or self.audio is not None:
+                _, duration = metadata.recording_reference(self)
+                self._lazy_cache['media_total_time'] = duration
+            elif self.media_start_time is not None and self.media_stop_time is not None:
+                self._lazy_cache['media_total_time'] = (
+                    self.media_stop_time - self.media_start_time
+                ).total_seconds()
+            else:
+                self._lazy_cache['media_total_time'] = None
+
+        return self._lazy_cache['media_total_time']
+
+    @media_total_time.setter
+    def media_total_time(self, value):
+        self._lazy_cache['media_total_time'] = value
+
+    @property
+    def consumption(self):
+        if 'consumption' not in self._lazy_cache:
+            if 'consumption' not in self.files:
+                self._lazy_cache['consumption'] = None
+            else:
+                self._lazy_cache['consumption'] = sensor_data.preprocess_consumption(
                     csv_io.load_csv_data(
-                        v.file_path, fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES
+                        self.files['consumption'].file_path,
+                        fieldnames=constants.CONSUMPTION_FILE_FIELDNAMES,
                     ),
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
                     self.media_stop_time,
                 )
 
-            if k == 'gps':
-                self.geolocation_points = sensor_data.preprocess_gps(
-                    csv_io.load_csv_data(v.file_path, fieldnames=constants.GPS_FILE_FIELDNAMES),
+        return self._lazy_cache['consumption']
+
+    @consumption.setter
+    def consumption(self, value):
+        self._lazy_cache['consumption'] = value
+
+    @property
+    def geolocation_points(self):
+        if 'geolocation_points' not in self._lazy_cache:
+            if 'gps' not in self.files:
+                self._lazy_cache['geolocation_points'] = None
+            else:
+                self._lazy_cache['geolocation_points'] = sensor_data.preprocess_gps(
+                    csv_io.load_csv_data(
+                        self.files['gps'].file_path,
+                        fieldnames=constants.GPS_FILE_FIELDNAMES,
+                    ),
                     constants.DATETIME_UTC_FORMAT,
                     self.media_start_time,
                     self.media_stop_time,
                 )
 
-                if not self.geolocation_points.empty:
-                    self.geolocation_center = (
-                        self.geolocation_points[['latitude', 'longitude']].mean().tolist()
-                    )
-                else:
-                    self.geolocation_center = None
+        return self._lazy_cache['geolocation_points']
 
-            if k == 'sensors3':
-                self.sensors3 = sensor_data.preprocess_sensors(
+    @geolocation_points.setter
+    def geolocation_points(self, value):
+        self._lazy_cache['geolocation_points'] = value
+        self._lazy_cache.pop('geolocation_center', None)
+
+    @property
+    def geolocation_center(self):
+        if 'geolocation_center' not in self._lazy_cache:
+            points = self.geolocation_points
+
+            if points is not None and not points.empty:
+                self._lazy_cache['geolocation_center'] = (
+                    points[['latitude', 'longitude']].mean().tolist()
+                )
+            else:
+                self._lazy_cache['geolocation_center'] = None
+
+        return self._lazy_cache['geolocation_center']
+
+    @geolocation_center.setter
+    def geolocation_center(self, value):
+        self._lazy_cache['geolocation_center'] = value
+
+    @property
+    def sensors1(self):
+        if 'sensors1' not in self._lazy_cache:
+            if 'sensors1' not in self.files:
+                self._lazy_cache['sensors1'] = None
+            else:
+                self._lazy_cache['sensors1'] = sensor_data.preprocess_sensors(
                     csv_io.load_csv_data(
-                        v.file_path, fieldnames=constants.THREE_AXES_SENSORS_FILE_FIELDNAMES
+                        self.files['sensors1'].file_path,
+                        fieldnames=constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES,
+                    ),
+                    1,
+                    constants.DATETIME_UTC_FORMAT,
+                    self.media_start_time,
+                    self.media_stop_time,
+                )
+
+        return self._lazy_cache['sensors1']
+
+    @sensors1.setter
+    def sensors1(self, value):
+        self._lazy_cache['sensors1'] = value
+
+    @property
+    def sensors3(self):
+        if 'sensors3' not in self._lazy_cache:
+            if 'sensors3' not in self.files:
+                self._lazy_cache['sensors3'] = None
+            else:
+                self._lazy_cache['sensors3'] = sensor_data.preprocess_sensors(
+                    csv_io.load_csv_data(
+                        self.files['sensors3'].file_path,
+                        fieldnames=constants.THREE_AXES_SENSORS_FILE_FIELDNAMES,
                     ),
                     3,
                     constants.DATETIME_UTC_FORMAT,
@@ -405,10 +545,21 @@ class SideSeeingInstance:
                     self.media_stop_time,
                 )
 
-            if k == 'sensors6':
-                self.sensors6 = sensor_data.preprocess_sensors(
+        return self._lazy_cache['sensors3']
+
+    @sensors3.setter
+    def sensors3(self, value):
+        self._lazy_cache['sensors3'] = value
+
+    @property
+    def sensors6(self):
+        if 'sensors6' not in self._lazy_cache:
+            if 'sensors6' not in self.files:
+                self._lazy_cache['sensors6'] = None
+            else:
+                self._lazy_cache['sensors6'] = sensor_data.preprocess_sensors(
                     csv_io.load_csv_data(
-                        v.file_path,
+                        self.files['sensors6'].file_path,
                         fieldnames=constants.THREE_AXES_UNCALIBRATED_SENSORS_FILE_FIELDNAMES,
                     ),
                     6,
@@ -417,43 +568,66 @@ class SideSeeingInstance:
                     self.media_stop_time,
                 )
 
-            if k == 'sensors1':
-                self.sensors1 = sensor_data.preprocess_sensors(
-                    csv_io.load_csv_data(
-                        v.file_path, fieldnames=constants.ONE_AXIS_SENSORS_FILE_FIELDNAMES
-                    ),
-                    1,
-                    constants.DATETIME_UTC_FORMAT,
-                    self.media_start_time,
-                    self.media_stop_time,
-                )
+        return self._lazy_cache['sensors6']
 
-            if k == 'wifi':
-                self.wifi_networks = network_data.process_wifi_networks(
-                    v.file_path,
+    @sensors6.setter
+    def sensors6(self, value):
+        self._lazy_cache['sensors6'] = value
+
+    @property
+    def wifi_networks(self):
+        if 'wifi_networks' not in self._lazy_cache:
+            if 'wifi' not in self.files:
+                self._lazy_cache['wifi_networks'] = None
+            else:
+                self._lazy_cache['wifi_networks'] = network_data.process_wifi_networks(
+                    self.files['wifi'].file_path,
                     datetime_format=constants.DATETIME_UTC_FORMAT,
                     start_time=self.media_start_time,
                     end_time=self.media_stop_time,
                 )
 
-            if k == 'cell':
-                self.cell_networks = network_data.process_cell_networks(
-                    v.file_path,
+        return self._lazy_cache['wifi_networks']
+
+    @wifi_networks.setter
+    def wifi_networks(self, value):
+        self._lazy_cache['wifi_networks'] = value
+
+    @property
+    def cell_networks(self):
+        if 'cell_networks' not in self._lazy_cache:
+            if 'cell' not in self.files:
+                self._lazy_cache['cell_networks'] = None
+            else:
+                self._lazy_cache['cell_networks'] = network_data.process_cell_networks(
+                    self.files['cell'].file_path,
                     datetime_format=constants.DATETIME_UTC_FORMAT,
                     start_time=self.media_start_time,
                     end_time=self.media_stop_time,
                 )
 
-            if k == 'label':
-                self.label = csv_io.load_csv_data(
-                    v.file_path, fieldnames=constants.LABELS_FILE_FIELDNAMES
+        return self._lazy_cache['cell_networks']
+
+    @cell_networks.setter
+    def cell_networks(self, value):
+        self._lazy_cache['cell_networks'] = value
+
+    @property
+    def label(self):
+        if 'label' not in self._lazy_cache:
+            if 'label' not in self.files:
+                self._lazy_cache['label'] = None
+            else:
+                self._lazy_cache['label'] = csv_io.load_csv_data(
+                    self.files['label'].file_path,
+                    fieldnames=constants.LABELS_FILE_FIELDNAMES,
                 )
 
-            if k == 'video' and extract_media:
-                self.audio = media.extract_audio(v.file_path, v.file_path.replace('.mp4', '.wav'))
-                self.gif = media.extract_gif(v.file_path, v.file_path.replace('.mp4', '.gif'))
+        return self._lazy_cache['label']
 
-        return True
+    @label.setter
+    def label(self, value):
+        self._lazy_cache['label'] = value
 
     def extract_snippet(
         self, start_time, end_time, output_dir, include_time_span_on_filename=False

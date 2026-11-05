@@ -177,3 +177,25 @@ class TestSideSeeingDS(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 ds.find_instances('')
+
+    def test_lazy_loading_defers_csv_parsing_and_supports_preload(self):
+        ds = SideSeeingDS(root_dir=self.root_dir, name="LazyDataset")
+        instance = ds.instances['instance-001']
+
+        self.assertEqual(instance._lazy_cache, {})
+        self.assertIsNone(ds._sensors)
+
+        sensors_index = ds.sensors
+        self.assertIn('sensors3', sensors_index)
+        self.assertIn('sensors3', instance._lazy_cache)
+        self.assertNotIn('geolocation_points', instance._lazy_cache)
+
+        ds.clear_cache()
+        self.assertEqual(instance._lazy_cache, {})
+
+        preloaded = SideSeeingDS(root_dir=self.root_dir, name="PreloadedDataset", preload=True)
+        preloaded_instance = preloaded.instances['instance-001']
+        self.assertIsNotNone(preloaded._sensors)
+        self.assertIn('geolocation_points', preloaded_instance._lazy_cache)
+        self.assertIn('consumption', preloaded_instance._lazy_cache)
+        self.assertIn('sensors3', preloaded_instance._lazy_cache)

@@ -71,6 +71,37 @@ class TestSideSeeingInstance(unittest.TestCase):
             with self.assertRaises(exceptions.MetadataFileDoesNotExistError):
                 SideSeeingInstance.from_directory(temp_dir)
 
+    def test_lazy_loading_and_cache_management(self):
+        instance_dir = FIXTURE_DATASET / 'instance-001'
+        loaded = SideSeeingInstance.from_directory(instance_dir)
+
+        self.assertEqual(loaded._lazy_cache, {})
+
+        gps = loaded.geolocation_points
+        self.assertIsNotNone(gps)
+        self.assertIn('geolocation_points', loaded._lazy_cache)
+        self.assertIs(loaded.geolocation_points, gps)
+        self.assertIsNotNone(loaded.geolocation_center)
+        self.assertIn('geolocation_center', loaded._lazy_cache)
+        self.assertNotIn('sensors3', loaded._lazy_cache)
+
+        loaded.clear_cache()
+        self.assertEqual(loaded._lazy_cache, {})
+
+        loaded.preload()
+        for attr in (
+            'consumption',
+            'geolocation_points',
+            'geolocation_center',
+            'sensors1',
+            'sensors3',
+            'sensors6',
+            'wifi_networks',
+            'cell_networks',
+            'label',
+        ):
+            self.assertIn(attr, loaded._lazy_cache)
+
     def test_extract_snippet_with_include_time_span_on_filename(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             timestamped = Path(temp_dir) / 'timestamped'
