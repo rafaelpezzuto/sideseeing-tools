@@ -353,11 +353,14 @@ class TestLoadAudioSignal(unittest.TestCase):
 
     def test_load_audio_signal_filters_frequencies_above_nyquist_when_downsampling(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            wav_path = os.path.join(tmp_dir, 'high_tone.wav')
+            wav_path = os.path.join(tmp_dir, 'test_tones.wav')
             source_rate = 44100
-            duration_s = 2
+            duration_s = 5
             t = np.arange(source_rate * duration_s, dtype=np.float64) / source_rate
-            pcm = (16000.0 * np.sin(2.0 * np.pi * 15000.0 * t)).astype('<i2')
+            signal = 8000.0 * np.sin(2.0 * np.pi * 1000.0 * t) + 16000.0 * np.sin(
+                2.0 * np.pi * 15000.0 * t
+            )
+            pcm = np.clip(signal, -32768, 32767).astype('<i2')
 
             with wave.open(wav_path, 'wb') as wf:
                 wf.setnchannels(1)
@@ -370,9 +373,17 @@ class TestLoadAudioSignal(unittest.TestCase):
 
             core = samples[1000:-1000].astype(np.float64)
             idx = np.arange(len(core), dtype=np.float64) / sr
-            alias_freq = 7050.0
-            sin_proj = np.mean(core * np.sin(2.0 * np.pi * alias_freq * idx))
-            cos_proj = np.mean(core * np.cos(2.0 * np.pi * alias_freq * idx))
-            alias_amplitude = 2.0 * float(np.hypot(sin_proj, cos_proj))
-            self.assertLess(alias_amplitude, 1e-3)
+
+            def tone_amplitude(freq_hz):
+                sin_proj = np.mean(core * np.sin(2.0 * np.pi * freq_hz * idx))
+                cos_proj = np.mean(core * np.cos(2.0 * np.pi * freq_hz * idx))
+                return 2.0 * float(np.hypot(sin_proj, cos_proj))
+
+            in_band_amplitude = tone_amplitude(1000.0)
+            alias_amplitude = tone_amplitude(7050.0)
+
+            self.assertGreater(in_band_amplitude, 0.15)
+            self.assertLess(alias_amplitude, 1e-4)
+
+
 
