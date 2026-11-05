@@ -1,11 +1,17 @@
 import io
 import os
+import tempfile
+import threading
 import unittest
 from contextlib import redirect_stdout
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.request import urlopen as real_urlopen
 
+import cv2
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from sideseeing_tools import geolocation, media
@@ -137,9 +143,6 @@ class TestSideSeeingPlotter(unittest.TestCase):
             b'{"types": ["country"], "long_name": "Brazil"}'
             b']}]}'
         )
-        payload.__enter__ = lambda *args: payload
-        payload.__exit__ = lambda *args: False
-
         with patch('sideseeing_tools.geolocation.urlopen', return_value=payload) as mock_urlopen:
             google_res = geolocation.inverse_geocode(-23.56, -46.65, key='test-key')
 
@@ -158,10 +161,6 @@ class TestSideSeeingPlotter(unittest.TestCase):
         self.assertEqual(offline_res['country'], 'Brazil')
 
     def test_inverse_geocode_from_google_handles_truncated_http_response(self):
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-        import threading
-        from urllib.request import urlopen as real_urlopen
-
         class TruncatedHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 self.send_response(200)
@@ -174,6 +173,7 @@ class TestSideSeeingPlotter(unittest.TestCase):
                 pass
 
         server = HTTPServer(('127.0.0.1', 0), TruncatedHandler)
+        server.timeout = 2
         port = server.server_port
         thread = threading.Thread(target=server.handle_request, daemon=True)
         thread.start()
@@ -181,7 +181,7 @@ class TestSideSeeingPlotter(unittest.TestCase):
         try:
             with patch(
                 'sideseeing_tools.geolocation.urlopen',
-                side_effect=lambda url, *a, **kw: real_urlopen(f'http://127.0.0.1:{port}/', *a, **kw),
+                side_effect=lambda url: real_urlopen(f'http://127.0.0.1:{port}/', timeout=2),
             ):
                 result = geolocation.inverse_geocode_from_google(-23.56, -46.65, 'dummy-key')
         finally:
@@ -193,49 +193,46 @@ class TestSideSeeingPlotter(unittest.TestCase):
             {'street': 'Unknown', 'city': 'Unknown', 'state': 'Unknown', 'country': 'Unknown'},
         )
 
-    def test_extract_gif_creates_gif_without_direct_imageio_import(self):
-        import tempfile
-        import cv2
-        import numpy as np
+    def test_extract_gif_preserves_every_sampled_frame(self):
+        for frame_count, target_fps in ((1, 5), (7, 3), (15, 11), (29, 25)):
+            with self.subTest(frame_count=frame_count, target_fps=target_fps):
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    video_path = os.path.join(tmp_dir, 'color_steps.mp4')
+                    gif_path = os.path.join(tmp_dir, 'color_steps.gif')
+                    levels = [round(200 * i / frame_count) for i in range(frame_count)]
+                    levels[-1] = 255
+                    fps = 30
+                    writer = cv2.VideoWriter(
+                        video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (64, 48)
+                    )
+                    try:
+                        self.assertTrue(writer.isOpened())
+                        for sec in range(frame_count * 4 - 2):
+                            frame = np.full((48, 64, 3), levels[sec // 4], dtype=np.uint8)
+                            for _ in range(fps):
+                                writer.write(frame)
+                    finally:
+                        writer.release()
 
-        colors_bgr = [
-            (0, 0, 255),
-            (0, 255, 0),
-            (255, 0, 0),
-            (0, 255, 255),
-            (255, 0, 255),
-            (255, 255, 0),
-            (255, 255, 255),
-        ]
+                    out = media.extract_gif(
+                        video_path, gif_path, target_width=64, target_fps=target_fps
+                    )
+                    self.assertEqual(out, gif_path)
+                    self.assertTrue(os.path.isfile(gif_path))
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            video_path = os.path.join(tmp_dir, 'color_steps.mp4')
-            gif_path = os.path.join(tmp_dir, 'color_steps.gif')
-            fps = 30
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            writer = cv2.VideoWriter(video_path, fourcc, fps, (64, 48))
+                    cap = cv2.VideoCapture(gif_path)
+                    decoded_levels = []
+                    try:
+                        self.assertTrue(cap.isOpened())
+                        while True:
+                            ret, frame = cap.read()
+                            if not ret:
+                                break
+                            decoded_levels.append(float(frame.mean()))
+                    finally:
+                        cap.release()
 
-            for sec in range(26):
-                color = colors_bgr[min(sec // 4, len(colors_bgr) - 1)]
-                frame = np.full((48, 64, 3), color, dtype=np.uint8)
-                for _ in range(fps):
-                    writer.write(frame)
-            writer.release()
-
-            out = media.extract_gif(video_path, gif_path, target_width=64, target_fps=3)
-            self.assertEqual(out, gif_path)
-            self.assertTrue(os.path.isfile(gif_path))
-
-            cap = cv2.VideoCapture(gif_path)
-            decoded_frames = []
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                decoded_frames.append(frame)
-            cap.release()
-
-            self.assertEqual(len(decoded_frames), 7)
-            last_mean = decoded_frames[-1].mean(axis=(0, 1))
-            self.assertGreater(float(last_mean.min()), 200.0)
+                    self.assertEqual(len(decoded_levels), frame_count)
+                    for actual, expected in zip(decoded_levels, levels):
+                        self.assertAlmostEqual(actual, expected, delta=6.0)
 

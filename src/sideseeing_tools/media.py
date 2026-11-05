@@ -1,4 +1,5 @@
 import os
+from math import inf, nextafter
 
 import cv2
 import numpy as np
@@ -84,8 +85,10 @@ def extract_gif(source_path, target_path, target_width=300, target_fps=5):
         cap.release()
 
         if gif_frames_list:
-            with ImageSequenceClip(gif_frames_list, fps=target_fps) as clip:
-                clip.duration = len(gif_frames_list) / target_fps
+            # MoviePy truncates duration * fps to count frames. Round the duration
+            # upward by one float step so e.g. (15 / 11) * 11 cannot lose a frame.
+            duration = nextafter(len(gif_frames_list) / target_fps, inf)
+            with ImageSequenceClip(gif_frames_list, fps=target_fps).with_duration(duration) as clip:
                 clip.write_gif(gif_path, fps=target_fps)
 
     return gif_path
