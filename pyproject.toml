@@ -1,6 +1,6 @@
 [project]
 name = "sideseeing-tools"
-version = "0.11.0"
+version = "0.12.0"
 authors = [
   {name="Rafael J. P. Damaceno", email="rafael.pezzuto@gmail.com"},
   {name="Renzo Filho", email="renzo.filho@usp.br"},
@@ -41,6 +41,9 @@ python_files = ["test_*.py",]
 [tool.setuptools.package-data]
 "tests" = ["*"]
 "sideseeing_tools" = ["templates/**/*", "models/activity/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["**/__pycache__/*", "**/*.pyc", "**/*.pyo"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
