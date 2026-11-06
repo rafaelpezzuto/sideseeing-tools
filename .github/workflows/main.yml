@@ -1,33 +1,120 @@
-name: Publish Package
+name: Build and publish package
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest
-    environment: pypi_api_token
-
+  build:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.8'
+          python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Verify release version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          tag = os.environ['RELEASE_TAG']
+          if tag != version:
+              raise SystemExit(f'Release tag {tag!r} does not match package version {version!r}')
+          PY
+
+      - name: Install build and test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools wheel twine build
+          python -m pip install build twine '.[dev]'
 
-      - name: Build package
-        run: |
-          python -m build .
+      - name: Run tests
+        env:
+          MPLBACKEND: Agg
+        run: python -m pytest -q
 
-      - name: Publish package to PyPI
+      - name: Build and check distributions
         run: |
-          python -m twine upload dist/* -u __token__ -p ${{ secrets.PYPI_TOKEN }}
+          python -m build
+          python -m twine check --strict dist/*
+          python - <<'PY'
+          import tarfile
+          import zipfile
+          from pathlib import Path
+
+          for path in Path('dist').iterdir():
+              if path.suffix == '.whl':
+                  with zipfile.ZipFile(path) as archive:
+                      names = archive.namelist()
+              else:
+                  with tarfile.open(path) as archive:
+                      names = archive.getnames()
+              assert not any('__pycache__' in name or name.endswith(('.pyc', '.pyo')) for name in names)
+              assert any(name.endswith('templates/report.html') for name in names)
+              assert any(name.endswith('models/activity/activity.keras') for name in names)
+          PY
+
+      - name: Smoke-test installed wheel outside the source tree
+        run: |
+          python -m venv --system-site-packages "$RUNNER_TEMP/wheel-smoke"
+          "$RUNNER_TEMP/wheel-smoke/bin/python" -m pip install --no-deps --force-reinstall dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-smoke/bin/python" -I - <<'PY'
+          import importlib.metadata
+          from importlib.resources import files
+          from sideseeing_tools.sideseeing import SideSeeingDS, SideSeeingInstance
+          from sideseeing_tools.network_data import parse_cell_info
+          from sideseeing_tools.media import load_audio_signal
+
+          assert callable(SideSeeingInstance.from_directory)
+          assert callable(SideSeeingDS.get_instance)
+          assert parse_cell_info('CellInfoNr:{CellIdentityNr:{mNci = 123}}')['nci'] == 123
+          assert files('sideseeing_tools').joinpath('templates/report.html').is_file()
+          print('Installed wheel:', importlib.metadata.version('sideseeing-tools'))
+          PY
+
+      - name: Save validated distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: distributions
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'release' && !github.event.release.prerelease
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi_api_token
+      url: https://pypi.org/project/sideseeing-tools/
+    steps:
+      - name: Download validated distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: distributions
+          path: dist/
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          password: ${{ secrets.PYPI_TOKEN }}
+          attestations: false
